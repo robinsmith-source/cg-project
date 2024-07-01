@@ -1,4 +1,4 @@
-import {createProgram, createShader, cubeColors, cubeIndices, cubePositions, loadTextResource} from "../../helpers";
+import {createProgram, createShader, cubeColors, cubeIndices, cubePositions, loadTextResource} from "../helpers";
 import {mat4} from "gl-matrix";
 
 console.log("Hello from WebGL");
@@ -65,8 +65,8 @@ async function configurePipeline(canvas: HTMLCanvasElement) {
 
     // loadTextResource(), createShader() and createProgram() are defined in utils.js
     // loadTextResource returns a string that contains the content of a text file
-    const vertexShaderText = await loadTextResource("src/webgl/shader.vert") as string;
-    const fragmentShaderText = await loadTextResource("src/webgl/shader.frag") as string;
+    const vertexShaderText = await loadTextResource("/shaders/shader.vert") as string;
+    const fragmentShaderText = await loadTextResource("/shaders/shader.frag") as string;
     // compile GLSL shaders - turn shader code into machine code that the GPU understands
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderText) as WebGLShader;
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderText) as WebGLShader;
