@@ -1,7 +1,16 @@
-import {createProgram, createShader, cubeColors, cubeIndices, cubePositions, loadTextResource} from "../helpers";
-import {mat4} from "gl-matrix";
+import {
+    createProgram,
+    createShader,
+    cubeColors,
+    cubeIndices,
+    cubeNormals,
+    cubePositions, cubeUVs,
+    loadTextResource
+} from "../helpers";
+import {mat3, mat4} from "gl-matrix";
 
 console.log("Hello from WebGL");
+
 export async function initWebGL(canvas: HTMLCanvasElement) {
     console.log("WebGL initialized")
     // initialization
@@ -53,10 +62,13 @@ async function configurePipeline(canvas: HTMLCanvasElement) {
     if (!gl) {
         console.error("Your browser does not support WebGL2");
     }
-
+    const enableAntialiasing = true;
+    if (!enableAntialiasing) {
+        canvas.style.imageRendering = "pixelated";
+    }
     // set the resolution of the canvas html element
-    canvas.width = 500;
-    canvas.height = 300;
+    canvas.width = 800;
+    canvas.height = 600;
     // tell WebGL the resolution
     gl.viewport(0, 0, canvas.width, canvas.height);
 
@@ -120,9 +132,36 @@ function sendAttributeDataToGPU() {
     const colorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeColors), gl.STATIC_DRAW);
+
+    const normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
+    // optional attribute -> only set, if it is used in the shader
+    if (normalAttributeLocation >= 0) {
+        const normalBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeNormals), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(normalAttributeLocation);
+        gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+    }
+
     const colorAttributeLocation = gl.getAttribLocation(program, "a_color");
-    gl.enableVertexAttribArray(colorAttributeLocation);
-    gl.vertexAttribPointer(colorAttributeLocation, 4, type, normalize, stride, offset);
+    // optional attribute -> only set, if it is used in the shader
+    if (colorAttributeLocation >= 0) {
+        const colorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeColors), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(colorAttributeLocation);
+        gl.vertexAttribPointer(colorAttributeLocation, 4, gl.FLOAT, false, 0, 0);
+    }
+
+    const uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
+    // optional attribute -> only set, if it is used in the shader
+    if (uvAttributeLocation >= 0) {
+        const uvBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeUVs), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(uvAttributeLocation);
+        gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    }
 
     // unbind vao and buffers to avoid accidental modification
     gl.bindVertexArray(null);
@@ -149,7 +188,7 @@ function render() {
     gl.useProgram(null);
 }
 
-function setMatrices(xRotationDegreesCamera : number, yRotationDegreesCamera : number) {
+function setMatrices(xRotationDegreesCamera: number, yRotationDegreesCamera: number) {
     // convert rotations from degree to radians
     const xRotationRadiansCamera = xRotationDegreesCamera / 360 * 2 * Math.PI;
     const yRotationRadiansCamera = yRotationDegreesCamera / 360 * 2 * Math.PI;
@@ -184,18 +223,39 @@ function setMatrices(xRotationDegreesCamera : number, yRotationDegreesCamera : n
 
     let projectionMatrix = mat4.create(); // create identity matrix
     const fieldOfView = 45 / 360 * 2 * Math.PI; // angle to radians
-    // const aspectRatio = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    const aspectRatio = 16/9;
+    const aspectRatio = gl.canvas.width / gl.canvas.height;
     const nearClippingPlane = 0.1;
     const farClippingPlane = 100.0;
     mat4.perspective(projectionMatrix, fieldOfView, aspectRatio, nearClippingPlane, farClippingPlane);
 
+    // the normalLocalToWorldMatrix is a special matrix for converting the normal direction to world space
+	// usually to transform a direction you would do: modelMatrix * vec4(directon, 0.0); where direction is a vec3
+	// the normal direction is special, because this does not work if the object has a non-uniform scaling
+	// normalLocalToWorldMatrix = transpose(inverse(mat3(modelMatrix)))
+	let normalLocalToWorldMatrix = mat3.create();
+	mat3.fromMat4(
+		normalLocalToWorldMatrix, // output mat3
+		modelMatrix, // input mat4
+	);
+	mat3.invert(
+		normalLocalToWorldMatrix, // output matrix
+		normalLocalToWorldMatrix, // input matrix
+	);
+	mat3.transpose(
+		normalLocalToWorldMatrix, // output matrix
+		normalLocalToWorldMatrix, // input matrix
+	);
+
     const modelMatrixLocation = gl.getUniformLocation(program, "u_modelMatrix");
     const viewMatrixLocation = gl.getUniformLocation(program, "u_viewMatrix");
     const projectionMatrixLocation = gl.getUniformLocation(program, "u_projectionMatrix");
+    const normalLocalToWorldMatrixLocation = gl.getUniformLocation(program, "u_normalLocalToWorldMatrix");
+	const cameraWorldSpacePositionLocation = gl.getUniformLocation(program, "u_cameraWorldSpacePosition");
     gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
     gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
     gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+    gl.uniformMatrix3fv(normalLocalToWorldMatrixLocation, false, normalLocalToWorldMatrix);
+	gl.uniform3fv(cameraWorldSpacePositionLocation, [1.0, 1.0, 1.0]);
 }
 
 function renderObject(vao: WebGLVertexArrayObject, numVertices: number) {

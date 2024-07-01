@@ -1,19 +1,26 @@
 #version 300 es
 
-// attribute data
 in vec3 a_position;
-in vec4 a_color;
+in vec3 a_normal;
+in vec2 a_uv;
 
-// data that gets interpolated and sent to the fragment shader
-out vec3 color;
-
-// uniform data, same value for every vertex
+// uniform data, same value for every vertex -> "global data"
 uniform mat4 u_modelMatrix;
 uniform mat4 u_viewMatrix;
 uniform mat4 u_projectionMatrix;
+uniform mat3 u_normalLocalToWorldMatrix;
+uniform vec3 u_cameraWorldSpacePosition;
+
+// output data that is sent to the fragment shader and will get interpolated
+out vec3 worldSpaceNormal;
+out vec3 worldSpacePosition;
 
 void main() {
-	gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * vec4(a_position, 1.0);
+	worldSpacePosition = (u_modelMatrix * vec4(a_position, 1.0)).xyz;
 
-	color = a_color.xyz;
+	// a normal vector requires a special matrix
+	worldSpaceNormal = u_normalLocalToWorldMatrix * a_normal;
+
+	// convert position from world space to clip space
+	gl_Position = u_projectionMatrix * u_viewMatrix * vec4(worldSpacePosition, 1.0);
 }
