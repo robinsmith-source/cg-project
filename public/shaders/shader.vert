@@ -18,8 +18,11 @@ out vec3 worldSpacePosition;
 void main() {
 	worldSpacePosition = (u_modelMatrix * vec4(a_position, 1.0)).xyz;
 
-	// a normal vector requires a special matrix
+	// a normal vector requires a speciaIllumination model more realistic than Phong, providing common material parameters and texture maps [medium]l matrix
 	worldSpaceNormal = u_normalLocalToWorldMatrix * a_normal;
+
+
+
 
 	// convert position from world space to clip space
 	gl_Position = u_projectionMatrix * u_viewMatrix * vec4(worldSpacePosition, 1.0);

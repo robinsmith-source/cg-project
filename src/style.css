@@ -36,7 +36,7 @@ canvas {
 	margin: auto;
 	/* if the canvas is too wide to fit on the page, scale it down */
 	max-width: 100%;
-	width: 50rem;
+	width: 80rem;
 }
 
 h1 {
