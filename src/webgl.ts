@@ -2,15 +2,15 @@ import {
     createProgram,
     createShader,
     loadTextResource,
-    planeColors, planeIndices, planeNormals,
-    planePositions, planeUVs,
     sphereColors,
     sphereIndices,
     sphereNormals,
     spherePositions,
     sphereUVs
 } from "../helpers";
-import {mat3, mat4} from "gl-matrix";
+import {mat3, mat4, vec2} from "gl-matrix";
+
+const timeAtProgramStart = new Date().getTime();
 
 export async function initialize(canvas: HTMLCanvasElement) {
     // initialization
@@ -26,6 +26,7 @@ function renderLoop() {
 }
 
 let cameraRotation = {x: 15, y: 30};
+let mousePosition = vec2.create();
 let isMouseDown = false;
 
 function setupCameraRotation(canvas: HTMLCanvasElement) {
@@ -44,7 +45,18 @@ function setupCameraRotation(canvas: HTMLCanvasElement) {
             cameraRotation.x += event.movementY * 0.2;
             cameraRotation.y += event.movementX * 0.2;
         }
+        vec2.set(mousePosition, event.pageX, window.innerHeight - event.pageY);
+        vec2.scale(mousePosition, mousePosition, window.devicePixelRatio);
     };
+
+    document.ontouchmove = function (event) {
+        const touch = event.touches[0];
+        if (touch) {
+            vec2.set(mousePosition, touch.pageX, window.innerHeight - touch.pageY);
+            vec2.scale(mousePosition, mousePosition, window.devicePixelRatio);
+        }
+        event.preventDefault(); // Prevent scrolling when touching canvas
+    }
 }
 
 // this data is set in configurePipeline() and used in render()
@@ -55,7 +67,6 @@ let program: WebGLProgram;
 // Every object should have its own VAO
 // Essentially it's a reference to the attribute data of an object
 let vaoSphere: WebGLVertexArrayObject;
-let vaoPlane: WebGLVertexArrayObject;
 
 async function configurePipeline(canvas: HTMLCanvasElement) {
     // get WebGL2RenderingContext - everytime we talk to WebGL we use this object
@@ -80,6 +91,7 @@ async function configurePipeline(canvas: HTMLCanvasElement) {
     // loadTextResource returns a string that contains the content of a text file
     const vertexShaderText = await loadTextResource("/shaders/shader.vert") as string;
     const fragmentShaderText = await loadTextResource("/shaders/shader.frag") as string;
+
     // compile GLSL shaders - turn shader code into machine code that the GPU understands
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderText) as WebGLShader;
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderText) as WebGLShader;
@@ -89,7 +101,6 @@ async function configurePipeline(canvas: HTMLCanvasElement) {
 
 function sendAttributeDataToGPU() {
     vaoSphere = setupGeometry(spherePositions, sphereNormals, sphereColors, sphereUVs, sphereIndices) as WebGLVertexArrayObject;
-    vaoPlane = setupGeometry(planePositions, planeNormals, planeColors, planeUVs, planeIndices) as WebGLVertexArrayObject;
 }
 
 function render() {
@@ -103,7 +114,6 @@ function render() {
 
     // if we would have multiple objects, we would do this for every one of them
     setMatrices(-cameraRotation.x, -cameraRotation.y); // set model, view and projection matrices
-    renderObject(vaoPlane, planeIndices.length);
     renderObject(vaoSphere, sphereIndices.length);
 
     // unbind vao and program to avoid accidental modification
@@ -169,17 +179,31 @@ function setMatrices(xRotationDegreesCamera: number, yRotationDegreesCamera: num
         normalLocalToWorldMatrix, // input matrix
     );
 
+
+    const time = new Date().getTime() - timeAtProgramStart;
+
     const modelMatrixLocation = gl.getUniformLocation(program, "u_modelMatrix");
     const viewMatrixLocation = gl.getUniformLocation(program, "u_viewMatrix");
     const projectionMatrixLocation = gl.getUniformLocation(program, "u_projectionMatrix");
     const normalLocalToWorldMatrixLocation = gl.getUniformLocation(program, "u_normalLocalToWorldMatrix");
-	const cameraWorldSpacePositionLocation = gl.getUniformLocation(program, "u_cameraWorldSpacePosition");
+    const cameraWorldSpacePositionLocation = gl.getUniformLocation(program, "u_cameraWorldSpacePosition");
+    const timeLocation = gl.getUniformLocation(program, "u_time");
+    const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+    const mousePositionLocation = gl.getUniformLocation(program, "u_mouse");
+
+// Calculate resolution values considering the device pixel ratio
+    const resolutionX = window.innerWidth * window.devicePixelRatio;
+    const resolutionY = window.innerHeight * window.devicePixelRatio;
+
 
     gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
     gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
     gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
     gl.uniformMatrix3fv(normalLocalToWorldMatrixLocation, false, normalLocalToWorldMatrix);
     gl.uniform3fv(cameraWorldSpacePositionLocation, [1.0, 1.0, 1.0]);
+    gl.uniform1fv(timeLocation, [time]);
+    gl.uniform2fv(resolutionLocation, [resolutionX, resolutionY]);
+    gl.uniform2fv(mousePositionLocation, mousePosition);
 }
 
 function renderObject(vao: WebGLVertexArrayObject, numVertices: number) {
@@ -194,14 +218,14 @@ function renderObject(vao: WebGLVertexArrayObject, numVertices: number) {
 }
 
 function setupGeometry(positions: number[], normals: number[], colors: number[], uvs: number[], indices: number[]) {
-     // create a vertex array object (vao)
+    // create a vertex array object (vao)
     // any subsequent vertex attribute calls and bind buffer calls will be stored inside the vao
     // affected functions: "enableVertexAttribArray" "vertexAttribPointer" "bindBuffer"
     const vao = gl.createVertexArray() as WebGLVertexArrayObject;
     // make it the one we're currently working with
     gl.bindVertexArray(vao);
 
-     // create a buffer on the GPU - a buffer is just a place in memory where we can put our data
+    // create a buffer on the GPU - a buffer is just a place in memory where we can put our data
     const positionBuffer = gl.createBuffer();
 
     // tell WebGL that we now want to use the positionsBuffer
