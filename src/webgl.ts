@@ -260,25 +260,6 @@ function setupGeometry(positions: number[], normals: number[], colors: number[],
         gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
     }
 
-   /* const transpUvAttributeLocation = gl.getAttribLocation(transparentProgram, "a_uv");
-    // optional attribute -> only set, if it is used in the shader
-    if (uvAttributeLocation >= 0) {
-        const uvBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-        gl.enableVertexAttribArray(transpUvAttributeLocation);
-        gl.vertexAttribPointer(transpUvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-    }*/
-
-    /*// Texture
-    const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-        new Uint8Array([0, 0, 255, 255]));
-
-    loadAndBindTexture(gl, texture as WebGLTexture);*/
-
-
     const indexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     // Uint16Array arranges the index data in a way the GPU can understand
@@ -290,16 +271,4 @@ function setupGeometry(positions: number[], normals: number[], colors: number[],
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
     return vao;
-}
-
-function loadAndBindTexture(gl : WebGL2RenderingContext, texture : WebGLTexture) {
-    // Load image texture and assign it to texture
-
-    const texResource = new Image();
-    texResource.src = "/textures/transparency.png";
-    texResource.addEventListener('load', function() {
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texResource);
-        gl.generateMipmap(gl.TEXTURE_2D);
-    });
 }

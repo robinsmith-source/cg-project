@@ -9,7 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "gl-matrix": "^3.4.1"
+    "gl-matrix": "^3.4.1",
+    "twgl.js": "^5.5.4"
   },
   "devDependencies": {
     "typescript": "^5.2.2",

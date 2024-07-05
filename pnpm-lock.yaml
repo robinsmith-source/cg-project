@@ -11,6 +11,9 @@ importers:
       gl-matrix:
         specifier: ^3.4.1
         version: 3.4.3
+      twgl.js:
+        specifier: ^5.5.4
+        version: 5.5.4
     devDependencies:
       typescript:
         specifier: ^5.2.2
@@ -276,6 +279,9 @@ packages:
     resolution: {integrity: sha512-itJW8lvSA0TXEphiRoawsCksnlf8SyvmFzIhltqAHluXd88pkCd+cXJVHTDwdCr0IzwptSm035IHQktUu1QUMg==}
     engines: {node: '>=0.10.0'}
 
+  twgl.js@5.5.4:
+    resolution: {integrity: sha512-6kFOmijOpmblTN9CCwOTCxK4lPg7rCyQjLuub6EMOlEp89Ex6yUcsMjsmH7andNPL2NE3XmHdqHeP5gVKKPhxw==}
+
   typescript@5.5.2:
     resolution: {integrity: sha512-NcRtPEOsPFFWjobJEtfihkLCZCXZt/os3zf8nTxjVH3RvTSxjrCamJpbExGvYOF+tFHc3pA65qpdwPbzjohhew==}
     engines: {node: '>=14.17'}
@@ -494,6 +500,8 @@ snapshots:
       fsevents: 2.3.3
 
   source-map-js@1.2.0: {}
+
+  twgl.js@5.5.4: {}
 
   typescript@5.5.2: {}
 
