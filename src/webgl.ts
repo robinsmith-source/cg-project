@@ -99,7 +99,7 @@ async function configurePipeline(canvas: HTMLCanvasElement) {
 
 }
 
-function setupVAO(gl : WebGL2RenderingContext, positions: number[], indices: number[]){
+/*function setupVAO(gl : WebGL2RenderingContext, positions: number[], indices: number[]){
     // Create and bind the VAO
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
@@ -125,7 +125,7 @@ function setupVAO(gl : WebGL2RenderingContext, positions: number[], indices: num
     gl.bindVertexArray(null);
 
     return vao;
-}
+}*/
 
 
 function sendAttributeDataToGPU() {
@@ -136,7 +136,7 @@ loadOBJFile(objUrl).then(objData => {
     const objNormals = new Float32Array(objData.normals);
     const objUVs = new Float32Array(objData.uvs);
     const objIndices = new Uint16Array(objData.indices);
-    const materials = objData.materials;
+    // const materials = objData.materials;
     numVertices = objIndices.length;
     vaoOBJ = setupGeometry(objPositions, objNormals, objUVs, objIndices);
 });

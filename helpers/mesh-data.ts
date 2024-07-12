@@ -165,7 +165,7 @@ export const planeNormals = new Array(planePositions.length)
 export const planeColors = generateRandomColors(planePositions.length);
 
 //prototype
-function generateTorusKnot(radius, tube, radialSegments, tubularSegments, p, q) {
+function generateTorusKnot(radius : number, tube : number, radialSegments : number, tubularSegments : number, p : number, q : number) {
     const positions = [];
     const normals = [];
     const uvs = [];
