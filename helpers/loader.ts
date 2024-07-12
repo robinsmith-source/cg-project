@@ -1,210 +1,155 @@
-import { vec3, vec2 } from 'gl-matrix';
-
-export interface VertexAttribute {
-  semantics: string;
-  slot: number;
-  size: number;
-  type: GLenum;
-  offset: number;
-  stride: number;
-}
-export interface Mesh {
-  vertexFormat: VertexAttribute[];
-  vertexData: ArrayBufferView & { length: number };
-  indexData?: Uint32Array;
+export type ObjData = {
+    positions: number[];
+    normals: number[];
+    uvs: number[];
+    indices: number[];
+    materials?: { [key: string]: MaterialData }; // Material library
+    materialLib?: string; // Material library file name
 }
 
-export interface MeshCollection {
-  [name: string]: Mesh;
+export type MaterialData = {
+    diffuseColor?: number[]; // Example: [r, g, b]
+    specularColor?: number[]; // Example: [r, g, b], for the specular highlight color
+    ambientColor?: number[]; // Example: [r, g, b], for the ambient light color
+    emissiveColor?: number[]; // Example: [r, g, b], for self-illumination
+    shininess?: number; // Controls the shininess of the specular highlight
+    opacity?: number; // Range from 0.0 (fully transparent) to 1.0 (fully opaque)
+    textureMap?: string; // Path to the texture map image file
+    normalMap?: string; // Path to the normal map image file
+    specularMap?: string; // Path to the specular map image file
 }
 
-export const loadObj = (content: string) => {
-  type vector<T> = Array<T>;
+async function parseMTL(data: string): Promise<{ [key: string]: MaterialData }> {
+    const materials: { [key: string]: MaterialData } = {};
+    let currentMaterial: MaterialData | undefined;
 
-  class MeshVertex {
-    position: number = 0;
-    normal: number = 0;
-    uv: number = 0;
-    get key(): string {
-      return `${this.position}:${this.normal}:${this.uv}`;
-    }
-  }
+    const lines = data.split('\n');
 
-  const positions: vector<vec3> = [];
-  const normals: vector<vec3> = [];
-  const uvs: vector<vec2> = [];
-  const lookup = new Map<string, number>();
-  let vertexData: vector<number> = [];
-  let indexData: vector<number> = [];
-  const collection: MeshCollection = {};
-  let name: string = '';
-  let vertexFormat: VertexAttribute[] = null;
+    lines.forEach(line => {
+        const parts = line.trim().split(/\s+/);
+        const type = parts.shift();
 
-  const lines = content.split(/\r\n|\n/);
-  const objectRegExp = /^o\s+(.+)/;
-  const vertexRegExpr = /^v\s+([\-0-9.]+)\s+([\-0-9.]+)\s+([\-0-9.]+)/;
-  const uvRegExpr = /^vt\s+([\-0-9.]+)\s+([\-0-9.]+)(\s+[\-0-9.]+)?/;
-  const normalRegExpr = /^vn\s+([\-0-9.]+)\s+([\-0-9.]+)\s+([\-0-9.]+)/;
-  const faceRegExpr = /^f\s+/;
-  const facePositionsRegExpr = /^f\s+(\d+)\s+(\d+)\s+(\d+)/;
-  const facePositionsNormalsRegExpr =
-    /^f\s+(\d+)\/\/(\d+)\s+(\d+)\/\/(\d+)\s+(\d+)\/\/(\d+)/;
-  const faceFullRegExpr =
-    /^f\s+(\d+)\/(\d+)\/(\d+)\s+(\d+)\/(\d+)\/(\d+)\s+(\d+)\/(\d+)\/(\d+)/;
-
-  let matches;
-  for (const line of lines) {
-    if ((matches = line.match(objectRegExp))) {
-      if (name !== '') {
-        collection[name] = {
-          vertexFormat,
-          indexData: Uint32Array.from(indexData),
-          vertexData: Float32Array.from(vertexData),
-        };
-
-        lookup.clear();
-        vertexData.length = 0;
-        indexData = [];
-      }
-      name = matches[1].trim();
-      continue;
-    }
-    if ((matches = line.match(vertexRegExpr))) {
-      positions.push([+matches[1], +matches[2], +matches[3]]);
-      continue;
-    }
-    if ((matches = line.match(normalRegExpr))) {
-      normals.push([+matches[1], +matches[2], +matches[3]]);
-      continue;
-    }
-    if ((matches = line.match(uvRegExpr))) {
-      uvs.push([+matches[1], +matches[2]]);
-      continue;
-    }
-    if (line.match(faceRegExpr)) {
-      // Only vertices provided
-      const f = [new MeshVertex(), new MeshVertex(), new MeshVertex()];
-      if ((matches = line.match(facePositionsRegExpr))) {
-        vertexFormat = [
-          {
-            semantics: 'position',
-            size: 3,
-            type: WebGL2RenderingContext.FLOAT,
-            slot: 0,
-            offset: 0,
-            stride: 12,
-          },
-        ];
-
-        f[0].position = +matches[1];
-        f[1].position = +matches[2];
-        f[2].position = +matches[3];
-        for (let i = 0; i < 3; i++) {
-          if (!lookup.has(f[i].key)) {
-            lookup.set(f[i].key, vertexData.length / 3);
-            vertexData.push(...positions[f[i].position - 1]);
-          }
-          indexData.push(lookup.get(f[i].key));
+        switch (type) {
+            case 'newmtl':
+                const materialName = parts.join(' ');
+                currentMaterial = {};
+                materials[materialName] = currentMaterial;
+                break;
+            case 'Kd':
+                if (currentMaterial) {
+                    currentMaterial.diffuseColor = parts.map(parseFloat);
+                }
+                break;
+            case 'Ks':
+                if (currentMaterial) {
+                    currentMaterial.specularColor = parts.map(parseFloat);
+                }
+                break;
+            case 'Ka':
+                if (currentMaterial) {
+                    currentMaterial.ambientColor = parts.map(parseFloat);
+                }
+                break;
+            case 'Ke':
+                if (currentMaterial) {
+                    currentMaterial.emissiveColor = parts.map(parseFloat);
+                }
+                break;
+            case 'Ns':
+                if (currentMaterial) {
+                    currentMaterial.shininess = parseFloat(parts[0]);
+                }
+                break;
+            case 'd':
+                if (currentMaterial) {
+                    currentMaterial.opacity = parseFloat(parts[0]);
+                }
+                break;
+            case 'map_Kd':
+                if (currentMaterial) {
+                    currentMaterial.textureMap = parts.join(' ');
+                }
+                break;
+            case 'map_Bump':
+                if (currentMaterial) {
+                    currentMaterial.normalMap = parts.join(' ');
+                }
+                break;
+            // Add more cases for other MTL properties as needed
+            default:
+                break;
         }
-      } // Positions and normals
-      else if ((matches = line.match(facePositionsNormalsRegExpr))) {
-        vertexFormat = [
-          {
-            semantics: 'position',
-            size: 3,
-            type: WebGL2RenderingContext.FLOAT,
-            slot: 0,
-            offset: 0,
-            stride: 24,
-          },
-          {
-            semantics: 'normal',
-            size: 3,
-            type: WebGL2RenderingContext.FLOAT,
-            slot: 1,
-            offset: 12,
-            stride: 24,
-          },
-        ];
+    });
 
-        f[0].position = +matches[1];
-        f[0].normal = +matches[2];
+    return materials;
+}
 
-        f[1].position = +matches[3];
-        f[1].normal = +matches[4];
+function parseOBJ(data: string): ObjData {
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const uvs: number[] = [];
+    const indices: number[] = [];
+    let materialLib: string | undefined;
+    const materials: { [key: string]: MaterialData } = {};
 
-        f[2].position = +matches[5];
-        f[2].normal = +matches[6];
+    const lines = data.split('\n');
 
-        for (let i = 0; i < 3; i++) {
-          if (!lookup.has(f[i].key)) {
-            lookup.set(f[i].key, vertexData.length / 6);
-            vertexData.push(...positions[f[i].position - 1]);
-            vertexData.push(...normals[f[i].normal - 1]);
-          }
-          indexData.push(lookup.get(f[i].key));
+    lines.forEach(line => {
+        const parts = line.trim().split(/\s+/);
+        const type = parts.shift();
+
+        switch (type) {
+            case 'v':
+                // Vertex position
+                positions.push(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
+                break;
+            case 'vn':
+                // Vertex normal
+                normals.push(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
+                break;
+            case 'vt':
+                // Texture coordinates (UV)
+                uvs.push(parseFloat(parts[0]), parseFloat(parts[1]));
+                break;
+            case 'f':
+                if (parts.length < 3) {
+                    console.warn('Face with fewer than 3 vertices encountered:', line);
+                    break;
+                }
+                const firstVertex = parts[0].split('/');
+                for (let i = 1; i < parts.length - 1; i++) {
+                    const vertex1 = parts[i].split('/');
+                    const vertex2 = parts[i + 1].split('/');
+
+                    indices.push(parseInt(firstVertex[0]) - 1);
+                    indices.push(parseInt(vertex1[0]) - 1);
+                    indices.push(parseInt(vertex2[0]) - 1);
+                }
+                break;
+            case 'mtllib':
+                // Material library reference
+                materialLib = parts.join(' ');
+                break;
+            default:
+                break;
         }
-      } // Positions, normals and uvs
-      else if ((matches = line.match(faceFullRegExpr))) {
-        vertexFormat = [
-          {
-            semantics: 'position',
-            size: 3,
-            type: WebGL2RenderingContext.FLOAT,
-            slot: 0,
-            offset: 0,
-            stride: 32,
-          },
-          {
-            semantics: 'normal',
-            size: 3,
-            type: WebGL2RenderingContext.FLOAT,
-            slot: 1,
-            offset: 12,
-            stride: 32,
-          },
-          {
-            semantics: 'uv',
-            size: 2,
-            type: WebGL2RenderingContext.FLOAT,
-            slot: 2,
-            offset: 24,
-            stride: 32,
-          },
-        ];
+    });
 
-        f[0].position = +matches[1];
-        f[0].uv = +matches[2];
-        f[0].normal = +matches[3];
+    return {positions, normals, uvs, indices, materials, materialLib};
+}
 
-        f[1].position = +matches[4];
-        f[1].uv = +matches[5];
-        f[1].normal = +matches[6];
+export async function loadOBJFile(url: string): Promise<ObjData> {
+    const response = await fetch(url);
+    const data = await response.text();
+    const objData = parseOBJ(data);
 
-        f[2].position = +matches[7];
-        f[2].uv = +matches[8];
-        f[2].normal = +matches[9];
-
-        for (let i = 0; i < 3; i++) {
-          if (!lookup.has(f[i].key)) {
-            lookup.set(f[i].key, vertexData.length / 8);
-            vertexData.push(...positions[f[i].position - 1]);
-            vertexData.push(...normals[f[i].normal - 1]);
-            vertexData.push(...uvs[f[i].uv - 1]);
-          }
-          indexData.push(lookup.get(f[i].key));
-        }
-      } else {
-        throw new Error('Unknown token');
-      }
+    // Check if there's an MTL file associated
+    if (objData.materialLib) {
+        const mtlUrl = `/objects/${objData.materialLib}`; // Adjust path as per your project structure
+        const mtlResponse = await fetch(mtlUrl);
+        const mtlData = await mtlResponse.text();
+        objData.materials = await parseMTL(mtlData);
     }
-  }
 
-  collection[name] = {
-    vertexFormat,
-    indexData: Uint32Array.from(indexData),
-    vertexData: Float32Array.from(vertexData),
-  };
-
-  return collection;
-};
+    return objData;
+}

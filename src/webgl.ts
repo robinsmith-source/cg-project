@@ -2,13 +2,9 @@ import {
     createProgram,
     createShader,
     loadTextResource,
-    sphereColors,
-    sphereIndices,
-    sphereNormals,
-    spherePositions,
-    sphereUVs
 } from "../helpers";
 import {mat3, mat4, vec2} from "gl-matrix";
+import {loadOBJFile} from "../helpers/loader.ts";
 
 const timeAtProgramStart = new Date().getTime();
 
@@ -66,7 +62,9 @@ let program: WebGLProgram;
 // VAOs contain vertex attribute calls and bind buffer calls
 // Every object should have its own VAO
 // Essentially it's a reference to the attribute data of an object
-let vaoSphere: WebGLVertexArrayObject;
+const objUrl = '/objects/car.obj';
+let vaoOBJ: WebGLVertexArrayObject;
+let numVertices: number;
 
 async function configurePipeline(canvas: HTMLCanvasElement) {
     // get WebGL2RenderingContext - everytime we talk to WebGL we use this object
@@ -86,6 +84,7 @@ async function configurePipeline(canvas: HTMLCanvasElement) {
 
     // enable depth testing with a z-buffer
     gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
 
     // loadTextResource(), createShader() and createProgram() are defined in utils.js
     // loadTextResource returns a string that contains the content of a text file
@@ -97,10 +96,50 @@ async function configurePipeline(canvas: HTMLCanvasElement) {
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderText) as WebGLShader;
     // link the two shaders - create a program that uses both shaders
     program = createProgram(gl, vertexShader, fragmentShader) as WebGLProgram;
+
 }
 
+function setupVAO(gl : WebGL2RenderingContext, positions: number[], indices: number[]){
+    // Create and bind the VAO
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+
+    // Create, bind, and fill the position buffer
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+    // Enable the vertex attribute array and set its data layout
+    const positionAttribLocation = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(positionAttribLocation);
+    gl.vertexAttribPointer(positionAttribLocation, 3, gl.FLOAT, false, 0, 0);
+
+    // If using indices, create, bind, and fill the index buffer
+    if (indices) {
+        const indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    }
+
+    // Unbind the VAO
+    gl.bindVertexArray(null);
+
+    return vao;
+}
+
+
 function sendAttributeDataToGPU() {
-    vaoSphere = setupGeometry(spherePositions, sphereNormals, sphereColors, sphereUVs, sphereIndices) as WebGLVertexArrayObject;
+
+loadOBJFile(objUrl).then(objData => {
+    // Convert data to Float32Array and Uint16Array as needed for WebGL
+    const objPositions = new Float32Array(objData.positions);
+    const objNormals = new Float32Array(objData.normals);
+    const objUVs = new Float32Array(objData.uvs);
+    const objIndices = new Uint16Array(objData.indices);
+    const materials = objData.materials;
+    numVertices = objIndices.length;
+    vaoOBJ = setupGeometry(objPositions, objNormals, objUVs, objIndices);
+});
 }
 
 function render() {
@@ -114,7 +153,7 @@ function render() {
 
     // if we would have multiple objects, we would do this for every one of them
     setMatrices(-cameraRotation.x, -cameraRotation.y); // set model, view and projection matrices
-    renderObject(vaoSphere, sphereIndices.length);
+    renderObject(vaoOBJ, numVertices);
 
     // unbind vao and program to avoid accidental modification
     gl.bindVertexArray(null);
@@ -217,7 +256,7 @@ function renderObject(vao: WebGLVertexArrayObject, numVertices: number) {
     gl.drawElements(primitiveType, numVertices, indexType, first);
 }
 
-function setupGeometry(positions: number[], normals: number[], colors: number[], uvs: number[], indices: number[]) {
+function setupGeometry(positions: Float32Array, normals: Float32Array, uvs: Float32Array, indices: Uint16Array) {
     // create a vertex array object (vao)
     // any subsequent vertex attribute calls and bind buffer calls will be stored inside the vao
     // affected functions: "enableVertexAttribArray" "vertexAttribPointer" "bindBuffer"
@@ -264,7 +303,7 @@ function setupGeometry(positions: number[], normals: number[], colors: number[],
         gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);
     }
 
-    const colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+    /*const colorAttributeLocation = gl.getAttribLocation(program, "a_color");
     // optional attribute -> only set, if it is used in the shader
     if (colorAttributeLocation >= 0) {
         const colorBuffer = gl.createBuffer();
@@ -272,7 +311,7 @@ function setupGeometry(positions: number[], normals: number[], colors: number[],
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
         gl.enableVertexAttribArray(colorAttributeLocation);
         gl.vertexAttribPointer(colorAttributeLocation, 4, gl.FLOAT, false, 0, 0);
-    }
+    }*/
 
     const uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
     // optional attribute -> only set, if it is used in the shader
