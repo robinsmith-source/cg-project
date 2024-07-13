@@ -62,7 +62,7 @@ let program: WebGLProgram;
 // VAOs contain vertex attribute calls and bind buffer calls
 // Every object should have its own VAO
 // Essentially it's a reference to the attribute data of an object
-const objUrl = '/objects/torus.obj';
+const objUrl = '/objects/car.obj';
 let vaoOBJ: WebGLVertexArrayObject;
 let numVertices: number;
 

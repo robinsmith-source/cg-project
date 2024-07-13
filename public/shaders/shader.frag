@@ -53,33 +53,27 @@ void main() {
     material.shininessConstant = 100.0;
 
     PointLight pointLight;
-    pointLight.worldSpacePosition = vec3(2.0, 3.0, 1.0);
+    pointLight.worldSpacePosition = vec3(2.0, 3.0, 1.0); // Adjust position as needed
     pointLight.color = vec3(1.0, 1.0, 0.8);
-    pointLight.intensity = 10.0;
+    pointLight.intensity = 5.0; // Increased intensity
 
-    AmbientLight ambientLight;
-    ambientLight.color = vec3(0.4, 0.5, 0.6);
-    ambientLight.intensity = 0.3;
 
-    vec3 N = normalize(worldSpaceNormal);
-    vec3 L = normalize(pointLight.worldSpacePosition - worldSpacePosition);
-    vec3 V = normalize(u_cameraWorldSpacePosition - worldSpacePosition);
-    vec3 R = reflect(-L, N);
-    float dist = length(pointLight.worldSpacePosition - worldSpacePosition);
-    vec3 lightColor = pointLight.color * pointLight.intensity / (dist * dist);
+    // Use the mouse position to define the light direction
+    float min_resolution = min(u_resolution.x, u_resolution.y);
+    // Use the mouse position to define the light direction
+    vec3 light_direction = -vec3((u_mouse - 0.5 * u_resolution) / min_resolution, 0.5);
 
-    // Toon shading adjustments
-    float diffuse = max(dot(N, L), 0.0);
-    float specular = pow(max(dot(R, V), 0.0), material.shininessConstant);
+    // Calculate the light diffusion factor
+    float df = diffuseFactor(worldSpaceNormal, light_direction);
 
-    // Quantize the diffuse and specular components
-    float diffuseSteps = 3.0;
-    float specularSteps = 2.0;
-    diffuse = floor(diffuse * diffuseSteps) / diffuseSteps;
-    specular = floor(specular * specularSteps) / specularSteps;
+    // Define the toon shading steps
+    float nSteps = 6.0;
+    float step = sqrt(df) * nSteps;
+    step = (floor(step) + smoothstep(0.48, 0.52, fract(step))) / nSteps;
 
-    vec3 ambient = ambientLight.color * ambientLight.intensity;
-    vec3 color = ambient + (material.color * diffuse + vec3(specular)) * lightColor;
+    // Calculate the surface color based on the toon shading step
+    vec3 surface_color = vec3(step * step);
 
-    fragColor = vec4(color, 1.0);
+    // Fragment shader output
+    fragColor = vec4(surface_color * material.color , 1.0);
 }
