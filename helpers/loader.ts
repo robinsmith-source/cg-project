@@ -1,7 +1,7 @@
 export type ObjData = {
     positions: number[];
-    normals: number[];
-    uvs: number[];
+    normals: number[] | undefined;
+    uvs: number[] | undefined;
     indices: number[];
     materials?: { [key: string]: MaterialData }; // Material library
     materialLib?: string; // Material library file name
@@ -84,13 +84,19 @@ async function parseMTL(data: string): Promise<{ [key: string]: MaterialData }> 
     return materials;
 }
 
-function parseOBJ(data: string): ObjData {
+function parseOBJ(data: string):
+    ObjData {
     const positions: number[] = [];
     const normals: number[] = [];
     const uvs: number[] = [];
-    const indices: number[] = [];
     let materialLib: string | undefined;
     const materials: { [key: string]: MaterialData } = {};
+
+    const vertexDataMap = new Map<string, number>();
+    const finalPositions: number[] = [];
+    const finalNormals: number[] = [];
+    const finalUVs: number[] = [];
+    const indices: number[] = [];
 
     const lines = data.split('\n');
 
@@ -100,34 +106,33 @@ function parseOBJ(data: string): ObjData {
 
         switch (type) {
             case 'v':
-                // Vertex position
-                positions.push(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
+                positions.push(...parts.map(parseFloat));
                 break;
             case 'vn':
-                // Vertex normal
-                normals.push(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
+                normals.push(...parts.map(parseFloat));
                 break;
             case 'vt':
-                // Texture coordinates (UV)
-                uvs.push(parseFloat(parts[0]), parseFloat(parts[1]));
+                uvs.push(...parts.map(parseFloat));
                 break;
             case 'f':
-                if (parts.length < 3) {
-                    console.warn('Face with fewer than 3 vertices encountered:', line);
-                    break;
-                }
-                const firstVertex = parts[0].split('/');
-                for (let i = 1; i < parts.length - 1; i++) {
-                    const vertex1 = parts[i].split('/');
-                    const vertex2 = parts[i + 1].split('/');
+                parts.forEach(part => {
+                    const [posIndex, uvIndex, normIndex] = part.split('/').map(num => parseInt(num, 10) - 1);
+                    const key = `${posIndex}|${uvIndex}|${normIndex}`;
 
-                    indices.push(parseInt(firstVertex[0]) - 1);
-                    indices.push(parseInt(vertex1[0]) - 1);
-                    indices.push(parseInt(vertex2[0]) - 1);
-                }
+                    if (!vertexDataMap.has(key)) {
+                        vertexDataMap.set(key, finalPositions.length / 3);
+                        finalPositions.push(positions[posIndex * 3], positions[posIndex * 3 + 1], positions[posIndex * 3 + 2]);
+                        if (!isNaN(uvIndex)) {
+                            finalUVs.push(uvs[uvIndex * 2], uvs[uvIndex * 2 + 1]);
+                        }
+                        if (!isNaN(normIndex)) {
+                            finalNormals.push(normals[normIndex * 3], normals[normIndex * 3 + 1], normals[normIndex * 3 + 2]);
+                        }
+                    }
+                    indices.push(vertexDataMap.get(key)!);
+                });
                 break;
             case 'mtllib':
-                // Material library reference
                 materialLib = parts.join(' ');
                 break;
             default:
@@ -135,7 +140,14 @@ function parseOBJ(data: string): ObjData {
         }
     });
 
-    return {positions, normals, uvs, indices, materials, materialLib};
+    return {
+        positions: finalPositions,
+        normals: finalNormals.length > 0 ? finalNormals : undefined,
+        uvs: finalUVs.length > 0 ? finalUVs : undefined,
+        indices,
+        materials,
+        materialLib
+    };
 }
 
 export async function loadOBJFile(url: string): Promise<ObjData> {

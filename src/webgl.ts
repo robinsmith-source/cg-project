@@ -4,7 +4,7 @@ import {
     loadTextResource,
 } from "../helpers";
 import {mat3, mat4, vec2} from "gl-matrix";
-import {loadOBJFile} from "../helpers/loader.ts";
+import {loadOBJFile} from "../helpers/loader";
 
 const timeAtProgramStart = new Date().getTime();
 
@@ -62,7 +62,7 @@ let program: WebGLProgram;
 // VAOs contain vertex attribute calls and bind buffer calls
 // Every object should have its own VAO
 // Essentially it's a reference to the attribute data of an object
-const objUrl = '/objects/car.obj';
+const objUrl = '/objects/torus.obj';
 let vaoOBJ: WebGLVertexArrayObject;
 let numVertices: number;
 
@@ -130,16 +130,16 @@ async function configurePipeline(canvas: HTMLCanvasElement) {
 
 function sendAttributeDataToGPU() {
 
-loadOBJFile(objUrl).then(objData => {
-    // Convert data to Float32Array and Uint16Array as needed for WebGL
-    const objPositions = new Float32Array(objData.positions);
-    const objNormals = new Float32Array(objData.normals);
-    const objUVs = new Float32Array(objData.uvs);
-    const objIndices = new Uint16Array(objData.indices);
-    // const materials = objData.materials;
-    numVertices = objIndices.length;
-    vaoOBJ = setupGeometry(objPositions, objNormals, objUVs, objIndices);
-});
+    loadOBJFile(objUrl).then(objData => {
+        // Convert data to Float32Array and Uint16Array as needed for WebGL
+        const objPositions = new Float32Array(objData.positions);
+        const objNormals = objData.normals ? new Float32Array(objData.normals) : new Float32Array([]);
+        const objUVs = objData.uvs ? new Float32Array(objData.uvs) : new Float32Array([]);
+        const objIndices = new Uint16Array(objData.indices);
+        // const materials = objData.materials;
+        numVertices = objIndices.length;
+        vaoOBJ = setupGeometry(objPositions, objNormals, objUVs, objIndices);
+    });
 }
 
 function render() {
