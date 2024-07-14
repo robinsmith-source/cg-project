@@ -125,11 +125,11 @@ export async function initialize(canvas: HTMLCanvasElement) {
     shaders.push(shaderProgram2);
 
     // Load OBJ files and create objects
-    const objData1 = await loadOBJFile('/objects/car.obj');
+    const objData1 = await loadOBJFile('objects/car.obj');
     const object1 = new Object(gl, objData1, shaderProgram1);
     objects.push(object1);
 
-    const objData2 = await loadOBJFile('/objects/lamppost.obj');
+    const objData2 = await loadOBJFile('objects/lamppost.obj');
     const object2 = new Object(gl, objData2, shaderProgram2);
     objects.push(object2);
 

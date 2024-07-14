@@ -157,7 +157,7 @@ export async function loadOBJFile(url: string): Promise<ObjData> {
 
     // Check if there's an MTL file associated
     if (objData.materialLib) {
-        const mtlUrl = `/objects/${objData.materialLib}`; // Adjust path as per your project structure
+        const mtlUrl = `objects/${objData.materialLib}`; // Adjust path as per your project structure
         const mtlResponse = await fetch(mtlUrl);
         const mtlData = await mtlResponse.text();
         objData.materials = await parseMTL(mtlData);
