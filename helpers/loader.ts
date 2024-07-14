@@ -162,6 +162,7 @@ export async function loadOBJFile(url: string): Promise<ObjData> {
         const mtlData = await mtlResponse.text();
         objData.materials = await parseMTL(mtlData);
     }
+    console.log(objData)
 
     return objData;
 }

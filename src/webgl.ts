@@ -1,19 +1,147 @@
-import {
-    createProgram,
-    createShader,
-    loadTextResource,
-} from "../helpers";
 import {mat3, mat4, vec2} from "gl-matrix";
-import {loadOBJFile} from "../helpers/loader";
+import {loadOBJFile} from "../helpers/loader.ts";
+import {createProgram, createShader, loadTextResource} from "../helpers";
 
+class ShaderProgram {
+    program: WebGLProgram;
+    gl: WebGL2RenderingContext;
+
+    constructor(gl: WebGL2RenderingContext, vertexShaderSource: string, fragmentShaderSource: string) {
+        this.gl = gl;
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource) as WebGLShader;
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource) as WebGLShader;
+        this.program = createProgram(gl, vertexShader, fragmentShader) as WebGLProgram;
+    }
+}
+
+class Object {
+    vao: WebGLVertexArrayObject;
+    numVertices: number;
+    shaderProgram: ShaderProgram;
+
+    constructor(gl: WebGL2RenderingContext, objData: any, shaderProgram: ShaderProgram) {
+        this.shaderProgram = shaderProgram;
+        const objPositions = new Float32Array(objData.positions);
+        const objNormals = objData.normals ? new Float32Array(objData.normals) : new Float32Array([]);
+        const objUVs = objData.uvs ? new Float32Array(objData.uvs) : new Float32Array([]);
+        const objIndices = new Uint16Array(objData.indices);
+        this.numVertices = objIndices.length;
+        this.vao = this.setupGeometry(gl, objPositions, objNormals, objUVs, objIndices);
+    }
+
+    setupGeometry(gl: WebGL2RenderingContext, positions: Float32Array, normals: Float32Array, uvs: Float32Array, indices: Uint16Array) {
+        const vao = gl.createVertexArray() as WebGLVertexArrayObject;
+        gl.bindVertexArray(vao);
+
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+        const positionAttributeLocation = gl.getAttribLocation(this.shaderProgram.program, "a_position");
+        gl.enableVertexAttribArray(positionAttributeLocation);
+        gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+        const normalAttributeLocation = gl.getAttribLocation(this.shaderProgram.program, "a_normal");
+        if (normalAttributeLocation >= 0) {
+            const normalBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(normalAttributeLocation);
+            gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+        }
+
+        const uvAttributeLocation = gl.getAttribLocation(this.shaderProgram.program, "a_uv");
+        if (uvAttributeLocation >= 0) {
+            const uvBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(uvAttributeLocation);
+            gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+        }
+
+        const indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+        gl.bindVertexArray(null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+        return vao;
+    }
+
+    render(gl: WebGL2RenderingContext, modelMatrix: mat4, viewMatrix: mat4, projectionMatrix: mat4, normalMatrix: mat3, time: number, resolution: vec2, mousePosition: vec2) {
+        gl.useProgram(this.shaderProgram.program);
+        gl.bindVertexArray(this.vao);
+
+        const modelMatrixLocation = gl.getUniformLocation(this.shaderProgram.program, "u_modelMatrix");
+        const viewMatrixLocation = gl.getUniformLocation(this.shaderProgram.program, "u_viewMatrix");
+        const projectionMatrixLocation = gl.getUniformLocation(this.shaderProgram.program, "u_projectionMatrix");
+        const normalLocalToWorldMatrixLocation = gl.getUniformLocation(this.shaderProgram.program, "u_normalLocalToWorldMatrix");
+        const cameraWorldSpacePositionLocation = gl.getUniformLocation(this.shaderProgram.program, "u_cameraWorldSpacePosition");
+        const timeLocation = gl.getUniformLocation(this.shaderProgram.program, "u_time");
+        const resolutionLocation = gl.getUniformLocation(this.shaderProgram.program, "u_resolution");
+        const mousePositionLocation = gl.getUniformLocation(this.shaderProgram.program, "u_mouse");
+
+        gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
+        gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
+        gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+        gl.uniformMatrix3fv(normalLocalToWorldMatrixLocation, false, normalMatrix);
+        gl.uniform3fv(cameraWorldSpacePositionLocation, [1.0, 1.0, 1.0]);
+        gl.uniform1f(timeLocation, time);
+        gl.uniform2fv(resolutionLocation, resolution);
+        gl.uniform2fv(mousePositionLocation, mousePosition);
+
+        gl.drawElements(gl.TRIANGLES, this.numVertices, gl.UNSIGNED_SHORT, 0);
+
+        gl.bindVertexArray(null);
+        gl.useProgram(null);
+    }
+}
+
+let gl: WebGL2RenderingContext;
+let objects: Object[] = [];
+let shaders: ShaderProgram[] = [];
 const timeAtProgramStart = new Date().getTime();
 
 export async function initialize(canvas: HTMLCanvasElement) {
-    // initialization
-    await configurePipeline(canvas);
-    sendAttributeDataToGPU();
+    gl = canvas.getContext("webgl2") as WebGL2RenderingContext;
+    if (!gl) {
+        console.error("Your browser does not support WebGL2");
+        return;
+    }
+
+    configureCanvas(canvas);
     setupCameraRotation(canvas);
+
+    // Load shaders
+    const vertexShaderText1 = await loadTextResource("/shaders/shader1.vert") as string;
+    const fragmentShaderText1 = await loadTextResource("/shaders/shader1.frag") as string;
+    const shaderProgram1 = new ShaderProgram(gl, vertexShaderText1, fragmentShaderText1);
+    shaders.push(shaderProgram1);
+
+    const vertexShaderText2 = await loadTextResource("/shaders/shader2.vert") as string;
+    const fragmentShaderText2 = await loadTextResource("/shaders/shader2.frag") as string;
+    const shaderProgram2 = new ShaderProgram(gl, vertexShaderText2, fragmentShaderText2);
+    shaders.push(shaderProgram2);
+
+    // Load OBJ files and create objects
+    const objData1 = await loadOBJFile('/objects/car.obj');
+    const object1 = new Object(gl, objData1, shaderProgram1);
+    objects.push(object1);
+
+    const objData2 = await loadOBJFile('/objects/lamppost.obj');
+    const object2 = new Object(gl, objData2, shaderProgram2);
+    objects.push(object2);
+
     renderLoop();
+}
+
+function configureCanvas(canvas: HTMLCanvasElement) {
+    canvas.width = 1920;
+    canvas.height = 1080;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
 }
 
 function renderLoop() {
@@ -21,22 +149,37 @@ function renderLoop() {
     requestAnimationFrame(renderLoop);
 }
 
+function render() {
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    const time = new Date().getTime() - timeAtProgramStart;
+    const resolution = vec2.fromValues(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
+    const modelMatrix = mat4.create();
+    const viewMatrix = mat4.create();
+    mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0,-5.0]);
+    mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.x * Math.PI / 180, [1, 0, 0]);
+    mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.y * Math.PI / 180, [0, 1, 0]);
+    const projectionMatrix = mat4.create();
+    mat4.perspective(projectionMatrix, 45 * Math.PI / 180, gl.canvas.width / gl.canvas.height, 0.1, 100.0);
+    const normalMatrix = mat3.create();
+    mat3.fromMat4(normalMatrix, modelMatrix);
+    mat3.invert(normalMatrix, normalMatrix);
+    mat3.transpose(normalMatrix, normalMatrix);
+
+    objects.forEach(object => {
+        object.render(gl, modelMatrix, viewMatrix, projectionMatrix, normalMatrix, time, resolution, mousePosition);
+    });
+}
+
 let cameraRotation = {x: 15, y: 30};
 let mousePosition = vec2.create();
 let isMouseDown = false;
 
 function setupCameraRotation(canvas: HTMLCanvasElement) {
-    // set input callbacks
-    // set isMouseDown to true if a mouse button is pressed while the cursor is on the canvas
-    canvas.onmousedown = function () {
-        isMouseDown = true
-    };
-    // set isMouseDown to false if the mouse button is released
-    document.onmouseup = function () {
-        isMouseDown = false
-    };
-    // update the camera rotation when the mouse is moved
-    document.onmousemove = function (event) {
+    canvas.onmousedown = () => isMouseDown = true;
+    document.onmouseup = () => isMouseDown = false;
+    document.onmousemove = (event) => {
         if (isMouseDown) {
             cameraRotation.x += event.movementY * 0.2;
             cameraRotation.y += event.movementX * 0.2;
@@ -45,293 +188,12 @@ function setupCameraRotation(canvas: HTMLCanvasElement) {
         vec2.scale(mousePosition, mousePosition, window.devicePixelRatio);
     };
 
-    document.ontouchmove = function (event) {
+    document.ontouchmove = (event) => {
         const touch = event.touches[0];
         if (touch) {
             vec2.set(mousePosition, touch.pageX, window.innerHeight - touch.pageY);
             vec2.scale(mousePosition, mousePosition, window.devicePixelRatio);
         }
-        event.preventDefault(); // Prevent scrolling when touching canvas
-    }
-}
-
-// this data is set in configurePipeline() and used in render()
-let gl: WebGL2RenderingContext;
-let program: WebGLProgram;
-
-// VAOs contain vertex attribute calls and bind buffer calls
-// Every object should have its own VAO
-// Essentially it's a reference to the attribute data of an object
-const objUrl = '/objects/car.obj';
-let vaoOBJ: WebGLVertexArrayObject;
-let numVertices: number;
-
-async function configurePipeline(canvas: HTMLCanvasElement) {
-    // get WebGL2RenderingContext - everytime we talk to WebGL we use this object
-    gl = canvas.getContext("webgl2") as WebGL2RenderingContext;
-    if (!gl) {
-        console.error("Your browser does not support WebGL2");
-    }
-    const enableAntialiasing = true;
-    if (!enableAntialiasing) {
-        canvas.style.imageRendering = "pixelated";
-    }
-    // set the resolution of the canvas html element
-    canvas.width = 1920;
-    canvas.height = 1080;
-    // tell WebGL the resolution
-    gl.viewport(0, 0, canvas.width, canvas.height);
-
-    // enable depth testing with a z-buffer
-    gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.CULL_FACE);
-
-    // loadTextResource(), createShader() and createProgram() are defined in utils.js
-    // loadTextResource returns a string that contains the content of a text file
-    const vertexShaderText = await loadTextResource("/shaders/shader.vert") as string;
-    const fragmentShaderText = await loadTextResource("/shaders/shader.frag") as string;
-
-    // compile GLSL shaders - turn shader code into machine code that the GPU understands
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderText) as WebGLShader;
-    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderText) as WebGLShader;
-    // link the two shaders - create a program that uses both shaders
-    program = createProgram(gl, vertexShader, fragmentShader) as WebGLProgram;
-
-}
-
-/*function setupVAO(gl : WebGL2RenderingContext, positions: number[], indices: number[]){
-    // Create and bind the VAO
-    const vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
-
-    // Create, bind, and fill the position buffer
-    const positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-    // Enable the vertex attribute array and set its data layout
-    const positionAttribLocation = gl.getAttribLocation(program, 'a_position');
-    gl.enableVertexAttribArray(positionAttribLocation);
-    gl.vertexAttribPointer(positionAttribLocation, 3, gl.FLOAT, false, 0, 0);
-
-    // If using indices, create, bind, and fill the index buffer
-    if (indices) {
-        const indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-    }
-
-    // Unbind the VAO
-    gl.bindVertexArray(null);
-
-    return vao;
-}*/
-
-
-function sendAttributeDataToGPU() {
-
-    loadOBJFile(objUrl).then(objData => {
-        // Convert data to Float32Array and Uint16Array as needed for WebGL
-        const objPositions = new Float32Array(objData.positions);
-        const objNormals = objData.normals ? new Float32Array(objData.normals) : new Float32Array([]);
-        const objUVs = objData.uvs ? new Float32Array(objData.uvs) : new Float32Array([]);
-        const objIndices = new Uint16Array(objData.indices);
-        // const materials = objData.materials;
-        numVertices = objIndices.length;
-        vaoOBJ = setupGeometry(objPositions, objNormals, objUVs, objIndices);
-    });
-}
-
-function render() {
-    // Clear the canvas with a single color
-    //            r  g  b  a
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    // Tell it to use our program (consists of vertex shader and fragment shader)
-    gl.useProgram(program);
-
-    // if we would have multiple objects, we would do this for every one of them
-    setMatrices(-cameraRotation.x, -cameraRotation.y); // set model, view and projection matrices
-    renderObject(vaoOBJ, numVertices);
-
-    // unbind vao and program to avoid accidental modification
-    gl.bindVertexArray(null);
-    gl.useProgram(null);
-}
-
-function setMatrices(xRotationDegreesCamera: number, yRotationDegreesCamera: number) {
-    // convert rotations from degree to radians
-    const xRotationRadiansCamera = xRotationDegreesCamera / 360 * 2 * Math.PI;
-    const yRotationRadiansCamera = yRotationDegreesCamera / 360 * 2 * Math.PI;
-
-    // we use the math library glMatrix. Link to documentation: https://glmatrix.net/docs/
-
-    // create a 4x4 Identity Matrix
-    let modelMatrix = mat4.create();
-
-    // functions from glMatrix have a little weird API: They often take an output and an input matrix
-    // the input matrix is the input data and the output matrix is the matrix that the result will be written to
-
-    let viewMatrix = mat4.create(); // create 4x4 identity matrix
-    // the view matrix contains the translation (position) and rotation of the camera
-    mat4.translate(
-        viewMatrix, // output matrix
-        viewMatrix, // matrix to translate
-        [0.0, 0.0, -5.0], // amount to translate -> camera distance to the object
-    );
-    mat4.rotate(
-        viewMatrix, // output matrix
-        viewMatrix, // matrix to rotate
-        -xRotationRadiansCamera, // amount to rotate in radians
-        [1, 0, 0], // axis to rotate around
-    );
-    mat4.rotate(
-        viewMatrix, // output matrix
-        viewMatrix, // matrix to rotate
-        -yRotationRadiansCamera, // amount to rotate in radians
-        [0, 1, 0], // axis to rotate around
-    );
-
-    let projectionMatrix = mat4.create(); // create identity matrix
-    const fieldOfView = 45 / 360 * 2 * Math.PI; // angle to radians
-    const aspectRatio = gl.canvas.width / gl.canvas.height;
-    const nearClippingPlane = 0.1;
-    const farClippingPlane = 100.0;
-    mat4.perspective(projectionMatrix, fieldOfView, aspectRatio, nearClippingPlane, farClippingPlane);
-
-    // the normalLocalToWorldMatrix is a special matrix for converting the normal direction to world space
-    // usually to transform a direction you would do: modelMatrix * vec4(direction, 0.0); where direction is a vec3
-    // the normal direction is special, because this does not work if the object has a non-uniform scaling
-    // normalLocalToWorldMatrix = transpose(inverse(mat3(modelMatrix)))
-    let normalLocalToWorldMatrix = mat3.create();
-    mat3.fromMat4(
-        normalLocalToWorldMatrix, // output mat3
-        modelMatrix, // input mat4
-    );
-    mat3.invert(
-        normalLocalToWorldMatrix, // output matrix
-        normalLocalToWorldMatrix, // input matrix
-    );
-    mat3.transpose(
-        normalLocalToWorldMatrix, // output matrix
-        normalLocalToWorldMatrix, // input matrix
-    );
-
-
-    const time = new Date().getTime() - timeAtProgramStart;
-
-    const modelMatrixLocation = gl.getUniformLocation(program, "u_modelMatrix");
-    const viewMatrixLocation = gl.getUniformLocation(program, "u_viewMatrix");
-    const projectionMatrixLocation = gl.getUniformLocation(program, "u_projectionMatrix");
-    const normalLocalToWorldMatrixLocation = gl.getUniformLocation(program, "u_normalLocalToWorldMatrix");
-    const cameraWorldSpacePositionLocation = gl.getUniformLocation(program, "u_cameraWorldSpacePosition");
-    const timeLocation = gl.getUniformLocation(program, "u_time");
-    const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
-    const mousePositionLocation = gl.getUniformLocation(program, "u_mouse");
-
-// Calculate resolution values considering the device pixel ratio
-    const resolutionX = window.innerWidth * window.devicePixelRatio;
-    const resolutionY = window.innerHeight * window.devicePixelRatio;
-
-
-    gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
-    gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
-    gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
-    gl.uniformMatrix3fv(normalLocalToWorldMatrixLocation, false, normalLocalToWorldMatrix);
-    gl.uniform3fv(cameraWorldSpacePositionLocation, [1.0, 1.0, 1.0]);
-    gl.uniform1fv(timeLocation, [time]);
-    gl.uniform2fv(resolutionLocation, [resolutionX, resolutionY]);
-    gl.uniform2fv(mousePositionLocation, mousePosition);
-}
-
-function renderObject(vao: WebGLVertexArrayObject, numVertices: number) {
-    // Specify which attribute data we use by binding the vertex array object.
-    // This executes all vertex attribute calls and bind buffer calls we made when initializing
-    gl.bindVertexArray(vao);
-
-    const primitiveType = gl.TRIANGLES; // some other primitive types are POINTS, LINES, TRIANGLE_STRIP, TRIANGLE_FAN
-    const first = 0;
-    const indexType = gl.UNSIGNED_SHORT; // UNSIGNED_SHORT equals a 16 bit unsigned int (Uint16Array)
-    gl.drawElements(primitiveType, numVertices, indexType, first);
-}
-
-function setupGeometry(positions: Float32Array, normals: Float32Array, uvs: Float32Array, indices: Uint16Array) {
-    // create a vertex array object (vao)
-    // any subsequent vertex attribute calls and bind buffer calls will be stored inside the vao
-    // affected functions: "enableVertexAttribArray" "vertexAttribPointer" "bindBuffer"
-    const vao = gl.createVertexArray() as WebGLVertexArrayObject;
-    // make it the one we're currently working with
-    gl.bindVertexArray(vao);
-
-    // create a buffer on the GPU - a buffer is just a place in memory where we can put our data
-    const positionBuffer = gl.createBuffer();
-
-    // tell WebGL that we now want to use the positionsBuffer
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-
-    // Put our data into the buffer we created on the GPU
-    // Float32Array arranges the data in a way the GPU can understand
-    // with STATIC_DRAW we tell WebGPU that we are not often going to update the data,
-    // which allows for optimizations
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-    // this function searches for a variable called "a_position" in the vertex shader code
-    const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-
-    // Turn on the attribute
-    gl.enableVertexAttribArray(positionAttributeLocation);
-
-    // Tell the attribute how to get data out of the positionBuffer
-    const size = 3;          // one position has 3 components (vec3)
-    const type = gl.FLOAT;   // our data is in 32bit floats (Float32Array)
-    const normalize = false; // this parameter is only important for integer data
-    // stride and offset tell WebGL about the memory layout
-    const stride = 0;        // 0 will automatically set the correct stride
-                             // manual stride calculation: size * sizeof(float): 2 * 4 Bytes = 8 Bytes
-    const offset = 0;        // for our memory layout (one buffer per attribute), this can always set to 0
-                             // this is only important, if you create a buffer that contains multiple attributes
-    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
-
-    const normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
-    // optional attribute -> only set, if it is used in the shader
-    if (normalAttributeLocation >= 0) {
-        const normalBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
-        gl.enableVertexAttribArray(normalAttributeLocation);
-        gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);
-    }
-
-    /*const colorAttributeLocation = gl.getAttribLocation(program, "a_color");
-    // optional attribute -> only set, if it is used in the shader
-    if (colorAttributeLocation >= 0) {
-        const colorBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-        gl.enableVertexAttribArray(colorAttributeLocation);
-        gl.vertexAttribPointer(colorAttributeLocation, 4, gl.FLOAT, false, 0, 0);
-    }*/
-
-    const uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
-    // optional attribute -> only set, if it is used in the shader
-    if (uvAttributeLocation >= 0) {
-        const uvBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-        gl.enableVertexAttribArray(uvAttributeLocation);
-        gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-    }
-
-    const indexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    // Uint16Array arranges the index data in a way the GPU can understand
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-
-    // unbind vao and buffers to avoid accidental modification
-    gl.bindVertexArray(null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-
-    return vao;
+        event.preventDefault();
+    };
 }
