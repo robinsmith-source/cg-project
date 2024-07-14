@@ -3,11 +3,14 @@ import {initialize} from './webgl'
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
-    <h1>Vite + TypeScript</h1>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
+   <header>
+        <h1>WebGL2 - Car Toon Shading</h1>
+          
+</header>
     <canvas id="canvas"></canvas>
+    <footer>
+        <p>Created by <a href="https://robinschmidt.dev"/>Robin Schmidt</a></p>
+</footer>
   </div>
 `
 
