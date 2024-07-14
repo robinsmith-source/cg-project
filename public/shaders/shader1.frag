@@ -2,22 +2,14 @@
 
 precision highp float;
 
-in vec3 worldSpaceNormal;
-in vec3 worldSpacePosition;
-uniform vec3 u_cameraWorldSpacePosition;
-uniform vec2 u_resolution;
-uniform vec2 u_mouse;
-uniform float u_time;
-
-
-out vec4 fragColor;
-
 struct Material {
-    vec3 color;
-    float diffuseIntensity;
-    float specularIntensity;
-    float ambientIntensity;
     float shininessConstant;
+    vec3 diffuseColor;
+    vec3 specularColor;
+    vec3 ambientColor;
+    vec3 emissiveColor;
+    float density;
+    float transparency;
 };
 
 struct PointLight {
@@ -30,6 +22,16 @@ struct AmbientLight {
     vec3 color;
     float intensity;
 };
+
+in vec3 worldSpaceNormal;
+in vec3 worldSpacePosition;
+uniform vec3 u_cameraWorldSpacePosition;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_time;
+uniform Material u_material;
+
+out vec4 fragColor;
 
 /*
  *  Calculates the diffuse factor produced by the light illumination
@@ -45,13 +47,6 @@ float diffuseFactor(vec3 normal, vec3 light_direction) {
 }
 
 void main() {
-    Material material;
-    material.color = vec3(0.4, 0.7, 1.0);
-    material.diffuseIntensity = 0.5;
-    material.specularIntensity = 0.5;
-    material.ambientIntensity = 1.0;
-    material.shininessConstant = 100.0;
-
     PointLight pointLight;
     pointLight.worldSpacePosition = vec3(2.0, 3.0, 1.0); // Adjust position as needed
     pointLight.color = vec3(1.0, 1.0, 0.8);
@@ -67,7 +62,7 @@ void main() {
     float df = diffuseFactor(worldSpaceNormal, light_direction);
 
     // Define the toon shading steps
-    float nSteps = 6.0;
+    float nSteps = 4.0;
     float step = sqrt(df) * nSteps;
     step = (floor(step) + smoothstep(0.48, 0.52, fract(step))) / nSteps;
 
@@ -75,5 +70,5 @@ void main() {
     vec3 surface_color = vec3(step * step);
 
     // Fragment shader output
-    fragColor = vec4(surface_color * material.color , 1.0);
+    fragColor = vec4(surface_color * u_material.diffuseColor , u_material.transparency);
 }

@@ -1,5 +1,5 @@
 import {mat3, mat4, vec2} from "gl-matrix";
-import {loadOBJFile} from "../helpers/loader.ts";
+import {loadOBJFile, MaterialGroup} from "../helpers/loader.ts";
 import {createProgram, createShader, loadTextResource} from "../helpers";
 
 class ShaderProgram {
@@ -18,9 +18,14 @@ class Object {
     vao: WebGLVertexArrayObject;
     numVertices: number;
     shaderProgram: ShaderProgram;
+    materialGroups: MaterialGroup[];
+    materials: { [key: string]: any };
 
     constructor(gl: WebGL2RenderingContext, objData: any, shaderProgram: ShaderProgram) {
         this.shaderProgram = shaderProgram;
+        this.materialGroups = objData.materialGroups;
+        this.materials = objData.materials;
+
         const objPositions = new Float32Array(objData.positions);
         const objNormals = objData.normals ? new Float32Array(objData.normals) : new Float32Array([]);
         const objUVs = objData.uvs ? new Float32Array(objData.uvs) : new Float32Array([]);
@@ -40,8 +45,9 @@ class Object {
         gl.enableVertexAttribArray(positionAttributeLocation);
         gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 
+        // Setup normal buffer if normals are available
         const normalAttributeLocation = gl.getAttribLocation(this.shaderProgram.program, "a_normal");
-        if (normalAttributeLocation >= 0) {
+        if (normalAttributeLocation >= 0 && normals.length > 0) {
             const normalBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
@@ -81,6 +87,36 @@ class Object {
         const timeLocation = gl.getUniformLocation(this.shaderProgram.program, "u_time");
         const resolutionLocation = gl.getUniformLocation(this.shaderProgram.program, "u_resolution");
         const mousePositionLocation = gl.getUniformLocation(this.shaderProgram.program, "u_mouse");
+
+
+        // Uniform locations for material properties
+        const materialShininessLocation = gl.getUniformLocation(this.shaderProgram.program, "u_material.Shininess");
+        const materialAmbientColorLocation = gl.getUniformLocation(this.shaderProgram.program, "u_material.AmbientColor");
+        const materialDiffuseColorLocation = gl.getUniformLocation(this.shaderProgram.program, "u_material.diffuseColor");
+        const materialSpecularColorLocation = gl.getUniformLocation(this.shaderProgram.program, "u_material.SpecularColor");
+        const materialEmissiveColorLocation = gl.getUniformLocation(this.shaderProgram.program, "u_material.EmissiveColor");
+        const materialDensityLocation = gl.getUniformLocation(this.shaderProgram.program, "u_material.Density");
+        const materialTransparencyLocation = gl.getUniformLocation(this.shaderProgram.program, "u_material.Transparency");
+
+// Iterate over material groups and render each with the correct material settings
+        this.materialGroups.forEach(group => {
+            const material = this.materials[group.materialName];
+
+            // Set material-specific uniforms
+            gl.uniform1f(materialShininessLocation, material.shininess);
+            gl.uniform3fv(materialAmbientColorLocation, material.ambientColor);
+            gl.uniform3fv(materialDiffuseColorLocation, material.diffuseColor);
+            gl.uniform3fv(materialSpecularColorLocation, material.specularColor);
+            gl.uniform3fv(materialEmissiveColorLocation, material.emissiveColor);
+            gl.uniform1f(materialDensityLocation, material.density);
+            gl.uniform1f(materialTransparencyLocation, material.transparency);
+
+            // Bind the index buffer for the current material group and draw
+            const indexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(group.indices), gl.STATIC_DRAW);
+            gl.drawElements(gl.TRIANGLES, group.indices.length, gl.UNSIGNED_SHORT, 0);
+        });
 
         gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
         gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
@@ -157,7 +193,7 @@ function render() {
     const resolution = vec2.fromValues(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
     const modelMatrix = mat4.create();
     const viewMatrix = mat4.create();
-    mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0,-5.0]);
+    mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -8.0]);
     mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.x * Math.PI / 180, [1, 0, 0]);
     mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.y * Math.PI / 180, [0, 1, 0]);
     const projectionMatrix = mat4.create();
