@@ -161,11 +161,11 @@ export async function initialize(canvas: HTMLCanvasElement) {
     shaders.push(shaderProgram2);
 
     // Load OBJ files and create objects
-    const objData1 = await loadOBJFile('objects/car.obj');
+    const objData1 = await loadOBJFile('objects/house2.obj');
     const object1 = new Object(gl, objData1, shaderProgram1);
     objects.push(object1);
 
-    const objData2 = await loadOBJFile('objects/lamppost.obj');
+    const objData2 = await loadOBJFile('objects/shop.obj');
     const object2 = new Object(gl, objData2, shaderProgram2);
     objects.push(object2);
 
@@ -193,7 +193,7 @@ function render() {
     const resolution = vec2.fromValues(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
     const modelMatrix = mat4.create();
     const viewMatrix = mat4.create();
-    mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -8.0]);
+    mat4.translate(viewMatrix, viewMatrix, [0.0, -2.0,-10.0]);
     mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.x * Math.PI / 180, [1, 0, 0]);
     mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.y * Math.PI / 180, [0, 1, 0]);
     const projectionMatrix = mat4.create();
@@ -208,7 +208,7 @@ function render() {
     });
 }
 
-let cameraRotation = {x: 15, y: 30};
+let cameraRotation = {x: 0, y: 0};
 let mousePosition = vec2.create();
 let isMouseDown = false;
 

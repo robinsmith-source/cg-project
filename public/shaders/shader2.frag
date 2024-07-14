@@ -22,7 +22,7 @@ out vec4 fragColor;
 
 void main() {
     vec3 norm = normalize(worldSpaceNormal);
-    vec3 lightDir = normalize(vec3(2.0,0.0,0.0) - worldSpacePosition);
+    vec3 lightDir = normalize(vec3(5.0,2.0,0.0) - worldSpacePosition);
     vec3 viewDir = normalize(u_cameraWorldSpacePosition - worldSpacePosition);
     vec3 reflectDir = reflect(-lightDir, norm);
     vec3 lightColor = vec3(1.0,1.0,0.0);

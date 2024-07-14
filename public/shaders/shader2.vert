@@ -22,5 +22,5 @@ void main() {
 	worldSpaceNormal = u_normalLocalToWorldMatrix * a_normal;
 
 	// convert position from world space to clip space
-	gl_Position = u_projectionMatrix * u_viewMatrix * vec4(vec3(worldSpacePosition.x - 1.0, worldSpacePosition.y,worldSpacePosition.z), 1.0);
+	gl_Position = u_projectionMatrix * u_viewMatrix * vec4(vec3(worldSpacePosition.x + 3.0, worldSpacePosition.y,worldSpacePosition.z), 1.0);
 }
