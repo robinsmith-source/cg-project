@@ -1,4 +1,4 @@
-import {mat3, mat4, vec2} from "gl-matrix";
+import {mat3, mat4} from "gl-matrix";
 import {loadOBJFile, MaterialGroup} from "../helpers/loader.ts";
 import {createProgram, createShader, loadTextResource} from "../helpers";
 
@@ -75,7 +75,7 @@ class Object {
         return vao;
     }
 
-    render(gl: WebGL2RenderingContext, modelMatrix: mat4, viewMatrix: mat4, projectionMatrix: mat4, normalMatrix: mat3, time: number, resolution: vec2, mousePosition: vec2) {
+    render(gl: WebGL2RenderingContext, modelMatrix: mat4, viewMatrix: mat4, projectionMatrix: mat4, normalMatrix: mat3, timeOfDay: number, lightDistance: number) {
         gl.useProgram(this.shaderProgram.program);
         gl.bindVertexArray(this.vao);
 
@@ -84,10 +84,8 @@ class Object {
         const projectionMatrixLocation = gl.getUniformLocation(this.shaderProgram.program, "u_projectionMatrix");
         const normalLocalToWorldMatrixLocation = gl.getUniformLocation(this.shaderProgram.program, "u_normalLocalToWorldMatrix");
         const cameraWorldSpacePositionLocation = gl.getUniformLocation(this.shaderProgram.program, "u_cameraWorldSpacePosition");
-        const timeLocation = gl.getUniformLocation(this.shaderProgram.program, "u_time");
-        const resolutionLocation = gl.getUniformLocation(this.shaderProgram.program, "u_resolution");
-        const mousePositionLocation = gl.getUniformLocation(this.shaderProgram.program, "u_mouse");
-
+        const timeOfDayLocation = gl.getUniformLocation(this.shaderProgram.program, "u_timeOfDay");
+        const lightDistanceLocation = gl.getUniformLocation(this.shaderProgram.program, "u_lightDistance");
 
         // Uniform locations for material properties
         const materialShininessLocation = gl.getUniformLocation(this.shaderProgram.program, "u_material.Shininess");
@@ -123,9 +121,8 @@ class Object {
         gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
         gl.uniformMatrix3fv(normalLocalToWorldMatrixLocation, false, normalMatrix);
         gl.uniform3fv(cameraWorldSpacePositionLocation, [1.0, 1.0, 1.0]);
-        gl.uniform1f(timeLocation, time);
-        gl.uniform2fv(resolutionLocation, resolution);
-        gl.uniform2fv(mousePositionLocation, mousePosition);
+        gl.uniform1f(timeOfDayLocation, timeOfDay);
+        gl.uniform1f(lightDistanceLocation, lightDistance);
 
         gl.drawElements(gl.TRIANGLES, this.numVertices, gl.UNSIGNED_SHORT, 0);
 
@@ -161,13 +158,9 @@ export async function initialize(canvas: HTMLCanvasElement) {
     shaders.push(shaderProgram2);
 
     // Load OBJ files and create objects
-    const objData1 = await loadOBJFile('objects/house2.obj');
+    const objData1 = await loadOBJFile('objects/low-poly-house.obj');
     const object1 = new Object(gl, objData1, shaderProgram1);
     objects.push(object1);
-
-    const objData2 = await loadOBJFile('objects/shop.obj');
-    const object2 = new Object(gl, objData2, shaderProgram2);
-    objects.push(object2);
 
     renderLoop();
 }
@@ -177,7 +170,7 @@ function configureCanvas(canvas: HTMLCanvasElement) {
     canvas.height = 1080;
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.CULL_FACE);
+    // gl.enable(gl.CULL_FACE);
 }
 
 function renderLoop() {
@@ -190,10 +183,9 @@ function render() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const time = new Date().getTime() - timeAtProgramStart;
-    const resolution = vec2.fromValues(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
     const modelMatrix = mat4.create();
     const viewMatrix = mat4.create();
-    mat4.translate(viewMatrix, viewMatrix, [0.0, -2.0,-10.0]);
+    mat4.translate(viewMatrix, viewMatrix, [0.0, -0.5, -45.0]);
     mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.x * Math.PI / 180, [1, 0, 0]);
     mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.y * Math.PI / 180, [0, 1, 0]);
     const projectionMatrix = mat4.create();
@@ -203,13 +195,15 @@ function render() {
     mat3.invert(normalMatrix, normalMatrix);
     mat3.transpose(normalMatrix, normalMatrix);
 
+    const timeOfDay = (time % 36000) / 36000;
+    const lightDistance = 50.0; // Set the distance of the sun and moon
+
     objects.forEach(object => {
-        object.render(gl, modelMatrix, viewMatrix, projectionMatrix, normalMatrix, time, resolution, mousePosition);
+        object.render(gl, modelMatrix, viewMatrix, projectionMatrix, normalMatrix, timeOfDay, lightDistance);
     });
 }
 
-let cameraRotation = {x: 0, y: 0};
-let mousePosition = vec2.create();
+let cameraRotation = {x: -15, y: -180};
 let isMouseDown = false;
 
 function setupCameraRotation(canvas: HTMLCanvasElement) {
@@ -220,16 +214,5 @@ function setupCameraRotation(canvas: HTMLCanvasElement) {
             cameraRotation.x += event.movementY * 0.2;
             cameraRotation.y += event.movementX * 0.2;
         }
-        vec2.set(mousePosition, event.pageX, window.innerHeight - event.pageY);
-        vec2.scale(mousePosition, mousePosition, window.devicePixelRatio);
-    };
-
-    document.ontouchmove = (event) => {
-        const touch = event.touches[0];
-        if (touch) {
-            vec2.set(mousePosition, touch.pageX, window.innerHeight - touch.pageY);
-            vec2.scale(mousePosition, mousePosition, window.devicePixelRatio);
-        }
-        event.preventDefault();
     };
 }
