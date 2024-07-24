@@ -56,12 +56,12 @@ void main() {
     // Define sun and moon lights
     PointLight sunLight;
     sunLight.worldSpacePosition = calculateSunPosition(u_timeOfDay, u_lightDistance);
-    sunLight.color = vec3(1.0, 1.0, 0.8);
+    sunLight.color = vec3(1.0, 1.0, 0.4);
     sunLight.intensity = 1.0;
 
     PointLight moonLight;
     moonLight.worldSpacePosition = calculateMoonPosition(u_timeOfDay, u_lightDistance);
-    moonLight.color = vec3(0.5, 0.5, 1.0);
+    moonLight.color = vec3(0.3, 0.3, 1.0);
     moonLight.intensity = 0.5;
 
     // Define ambient light

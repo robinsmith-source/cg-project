@@ -188,6 +188,8 @@ function render() {
     mat4.translate(viewMatrix, viewMatrix, [0.0, -0.5, -45.0]);
     mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.x * Math.PI / 180, [1, 0, 0]);
     mat4.rotate(viewMatrix, viewMatrix, -cameraRotation.y * Math.PI / 180, [0, 1, 0]);
+
+    mat4.scale(viewMatrix, viewMatrix, [cameraZoom, cameraZoom, cameraZoom]);
     const projectionMatrix = mat4.create();
     mat4.perspective(projectionMatrix, 45 * Math.PI / 180, gl.canvas.width / gl.canvas.height, 0.1, 100.0);
     const normalMatrix = mat3.create();
@@ -203,7 +205,9 @@ function render() {
     });
 }
 
-let cameraRotation = {x: -15, y: -180};
+let cameraRotation = { x: -15, y: -180 };
+let cameraZoom = 1.0;
+let targetZoom = 1.0;
 let isMouseDown = false;
 
 function setupCameraRotation(canvas: HTMLCanvasElement) {
@@ -215,4 +219,15 @@ function setupCameraRotation(canvas: HTMLCanvasElement) {
             cameraRotation.y += event.movementX * 0.2;
         }
     };
+    document.onwheel = (event) => {
+        targetZoom += event.deltaY * -0.001;
+        targetZoom = Math.min(Math.max(0.5, targetZoom), 2.0);
+    };
 }
+
+function smoothScroll() {
+    cameraZoom += (targetZoom - cameraZoom) * 0.1;
+    requestAnimationFrame(smoothScroll);
+}
+
+smoothScroll();
