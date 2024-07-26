@@ -12,8 +12,8 @@ struct Material {
   float transparency;
 };
 
-struct PointLight {
-  vec3 worldSpacePosition;
+struct DirectionalLight {
+  vec3 direction;
   vec3 color;
   float intensity;
 };
@@ -39,16 +39,16 @@ float diffuseFactor(vec3 normal, vec3 light_direction) {
   return max(0.0, df);
 }
 
-// Calculate the position of the sun based on the time of day and distance
-vec3 calculateSunPosition(float timeOfDay, float distance) {
+// Calculate the direction of the sun based on the time of day
+vec3 calculateSunDirection(float timeOfDay) {
   float angle = timeOfDay * 2.0 * PI; // Full rotation over a day
-  return vec3(cos(angle) * distance, sin(angle) * distance, 0.0);
+  return normalize(vec3(0.0, sin(angle), cos(angle)));
 }
 
-// Calculate the position of the moon based on the time of day and distance
-vec3 calculateMoonPosition(float timeOfDay, float distance) {
-  float angle = timeOfDay * 2.0 * PI + PI; // Opposite to the sun
-  return vec3(cos(angle) * distance, sin(angle) * distance, 0.0);
+// Calculate the direction of the moon based on the time of day
+vec3 calculateMoonDirection(float timeOfDay) {
+  float angle = timeOfDay * 2.0 * PI + PI; // Full rotation over a day
+  return normalize(vec3(0.0, sin(angle), cos(angle)));
 }
 
 // Interpolate between two colors based on the time of day using smoothstep
@@ -59,29 +59,25 @@ vec3 colorEase(vec3 startColor, vec3 endColor, float startTime, float endTime, f
 }
 
 void main() {
-  // Define sun and moon lights
-  PointLight sunLight;
-  sunLight.worldSpacePosition = calculateSunPosition(u_timeOfDay, u_lightDistance);
+  // Define sun and moon lights as directional lights
+  DirectionalLight sunLight;
+  sunLight.direction = calculateSunDirection(u_timeOfDay);
   sunLight.color = colorEase(vec3(1.0, 0.5, 0.0), vec3(1.0, 1.0, 0.4), 0.0, 0.5, u_timeOfDay);
   sunLight.intensity = 1.0;
 
-  PointLight moonLight;
-  moonLight.worldSpacePosition = calculateMoonPosition(u_timeOfDay, u_lightDistance);
-  moonLight.color = colorEase(vec3(0.3, 0.3, 1.0), vec3(0.1, 0.1, 0.5), 0.5, 1.0, u_timeOfDay);
+  DirectionalLight moonLight;
+  moonLight.direction = calculateMoonDirection(u_timeOfDay);
+  moonLight.color = colorEase(vec3(0.3, 0.3, 0.4), vec3(0.1, 0.1, 0.2), 0.5, 1.0, u_timeOfDay);
   moonLight.intensity = 0.5;
 
   // Define ambient light
   AmbientLight ambientLight;
   ambientLight.color = vec3(0.1, 0.1, 0.1);
-  ambientLight.intensity = 0.5;
-
-  // Calculate the light directions
-  vec3 sunLightDirection = normalize(sunLight.worldSpacePosition - worldSpacePosition);
-  vec3 moonLightDirection = normalize(moonLight.worldSpacePosition - worldSpacePosition);
+  ambientLight.intensity = 0.3;
 
   // Calculate the light diffusion factors
-  float sunDf = diffuseFactor(worldSpaceNormal, sunLightDirection);
-  float moonDf = diffuseFactor(worldSpaceNormal, moonLightDirection);
+  float sunDf = diffuseFactor(worldSpaceNormal, sunLight.direction);
+  float moonDf = diffuseFactor(worldSpaceNormal, moonLight.direction);
 
   // Define the toon shading steps
   float nSteps = 4.0;

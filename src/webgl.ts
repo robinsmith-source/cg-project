@@ -3,6 +3,7 @@ import { loadOBJFile } from '../helpers/loader';
 import { loadTextResource } from '../helpers';
 import ShaderProgram from '../helpers/shaderProgram';
 import RenderableObject from '../helpers/renderableObject';
+import { TextureCube } from '../helpers/cube';
 
 let gl: WebGL2RenderingContext;
 let objects: RenderableObject[] = [];
@@ -26,10 +27,26 @@ export async function initialize(canvas: HTMLCanvasElement) {
   const sceneShader = new ShaderProgram(gl, sceneVertexShader, sceneFragmentShader);
   shaders.push(sceneShader);
 
+  const sunVertexShader = (await loadTextResource('/shaders/sun.vert')) as string;
+  const sunFragmentShader = (await loadTextResource('/shaders/sun.frag')) as string;
+  const sunShader = new ShaderProgram(gl, sunVertexShader, sunFragmentShader);
+  shaders.push(sunShader);
+
+  const moonVertexShader = (await loadTextResource('/shaders/moon.vert')) as string;
+  const moonFragmentShader = (await loadTextResource('/shaders/moon.frag')) as string;
+  const moonShader = new ShaderProgram(gl, moonVertexShader, moonFragmentShader);
+  shaders.push(moonShader);
+
   // Load OBJ files and create objects
-  const objData1 = await loadOBJFile('objects/low-poly-house.obj');
-  const object1 = new RenderableObject(gl, objData1, sceneShader);
-  objects.push(object1);
+  const sceneOBJ = await loadOBJFile('objects/low-poly-house.obj');
+  const scene = new RenderableObject(gl, sceneOBJ, sceneShader);
+  objects.push(scene);
+
+  const sun = new TextureCube(gl, sunShader, '/textures/sun.png');
+  objects.push(sun);
+
+  const moon = new TextureCube(gl, moonShader, '/textures/moon.png');
+  objects.push(moon);
 
   renderLoop();
 }
@@ -72,7 +89,6 @@ function render() {
   mat3.transpose(normalMatrix, normalMatrix);
 
   const timeOfDay = ((time * speed) % 36000) / 36000;
-  const lightDistance = 80.0; // Set the distance of the sun and moon
 
   objects.forEach((object) => {
     object.render(
@@ -105,7 +121,7 @@ function setupCameraRotation(canvas: HTMLCanvasElement) {
   };
   document.onwheel = (event) => {
     targetZoom += event.deltaY * -0.001;
-    targetZoom = Math.min(Math.max(0.5, targetZoom), 2.0);
+    targetZoom = Math.min(Math.max(0.1, targetZoom), 2.0);
   };
 }
 

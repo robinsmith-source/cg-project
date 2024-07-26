@@ -15,6 +15,7 @@ const float PI = 3.14159;
 out vec3 worldSpaceNormal;
 out vec3 worldSpacePosition;
 out vec3 sunPosition; // Pass sun position to fragment shader
+out vec2 v_uv;
 
 // Calculate the position of the sun based on the time of day and distance
 vec3 calculateSunPosition(float timeOfDay, float distance) {
@@ -23,6 +24,7 @@ vec3 calculateSunPosition(float timeOfDay, float distance) {
 }
 
 void main() {
+  v_uv = a_uv;
   sunPosition = calculateSunPosition(u_timeOfDay, u_lightDistance); // Calculate and pass sun position
   vec3 transformedPosition = a_position + sunPosition; // Apply sun position to the object's position
   worldSpacePosition = (u_modelMatrix * vec4(transformedPosition, 1.0)).xyz;

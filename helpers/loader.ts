@@ -61,7 +61,7 @@ function parseOBJ(data: string): ObjData {
         parts.forEach((part) => {
           const [posIndex, uvIndex, normIndex] = part
             .split('/')
-            .map((num) => parseInt(num, 10) - 1);
+            .map((num) => (num ? parseInt(num, 10) - 1 : -1));
           const key = `${posIndex}|${uvIndex}|${normIndex}`;
 
           if (!vertexDataMap.has(key)) {
@@ -71,10 +71,10 @@ function parseOBJ(data: string): ObjData {
               positions[posIndex * 3 + 1],
               positions[posIndex * 3 + 2]
             );
-            if (!isNaN(uvIndex)) {
+            if (uvIndex >= 0) {
               finalUVs.push(uvs[uvIndex * 2], uvs[uvIndex * 2 + 1]);
             }
-            if (!isNaN(normIndex)) {
+            if (normIndex >= 0) {
               finalNormals.push(
                 normals[normIndex * 3],
                 normals[normIndex * 3 + 1],
