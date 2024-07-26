@@ -45,23 +45,29 @@ vec3 calculateSunPosition(float timeOfDay, float distance) {
     return vec3(cos(angle) * distance, sin(angle) * distance, 0.0);
 }
 
-
 // Calculate the position of the moon based on the time of day and distance
 vec3 calculateMoonPosition(float timeOfDay, float distance) {
     float angle = timeOfDay * 2.0 * PI + PI; // Opposite to the sun
     return vec3(cos(angle) * distance, sin(angle) * distance, 0.0);
 }
 
+// Interpolate between two colors based on the time of day using smoothstep
+vec3 colorEase(vec3 startColor, vec3 endColor, float startTime, float endTime, float timeOfDay) {
+    float t = (timeOfDay - startTime) / (endTime - startTime);
+    t = smoothstep(0.0, 1.0, t); // Apply smoothstep for smoother transition
+    return mix(startColor, endColor, t);
+}
+
 void main() {
     // Define sun and moon lights
     PointLight sunLight;
     sunLight.worldSpacePosition = calculateSunPosition(u_timeOfDay, u_lightDistance);
-    sunLight.color = vec3(1.0, 1.0, 0.4);
+    sunLight.color = colorEase(vec3(1.0, 0.5, 0.0), vec3(1.0, 1.0, 0.4), 0.0, 0.5, u_timeOfDay);
     sunLight.intensity = 1.0;
 
     PointLight moonLight;
     moonLight.worldSpacePosition = calculateMoonPosition(u_timeOfDay, u_lightDistance);
-    moonLight.color = vec3(0.3, 0.3, 1.0);
+    moonLight.color = colorEase(vec3(0.3, 0.3, 1.0), vec3(0.1, 0.1, 0.5), 0.5, 1.0, u_timeOfDay);
     moonLight.intensity = 0.5;
 
     // Define ambient light
@@ -88,14 +94,6 @@ void main() {
     // Calculate the surface color based on the toon shading steps
     vec3 sunSurfaceColor = vec3(sunStep * sunStep) * sunLight.color * sunLight.intensity;
     vec3 moonSurfaceColor = vec3(moonStep * moonStep) * moonLight.color * moonLight.intensity;
-
-    // Make sun and moon invisible when below horizon
-    if (sunLight.worldSpacePosition.y < -2.0) {
-        sunSurfaceColor = vec3(0.0);
-    }
-    if (moonLight.worldSpacePosition.y < -2.0) {
-        moonSurfaceColor = vec3(0.0);
-    }
 
     // Combine sun, moon, and ambient lighting
     vec3 surfaceColor = sunSurfaceColor + moonSurfaceColor + ambientLight.color * ambientLight.intensity;
