@@ -17,7 +17,7 @@ export type ObjData = {
     indices: number[];
     materials?: { [key: string]: Material }; // Material library
     materialLib?: string; // Material library file name
-    materialGroups: MaterialGroup[]; // List of material groups
+    materialGroups?: MaterialGroup[]; // List of material groups
 }
 
 export type MaterialGroup = {
