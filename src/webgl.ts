@@ -18,6 +18,7 @@ export async function initialize(canvas: HTMLCanvasElement) {
 
   configureCanvas(canvas);
   setupCameraRotation(canvas);
+  setupSettings();
 
   // Load shaders
   const sceneVertexShader = (await loadTextResource('/shaders/shader1.vert')) as string;
@@ -70,7 +71,7 @@ function render() {
   mat3.invert(normalMatrix, normalMatrix);
   mat3.transpose(normalMatrix, normalMatrix);
 
-  const timeOfDay = (time % 36000) / 36000;
+  const timeOfDay = ((time * speed) % 36000) / 36000;
   const lightDistance = 80.0; // Set the distance of the sun and moon
 
   objects.forEach((object) => {
@@ -90,6 +91,8 @@ let cameraRotation = { x: -15, y: -180 };
 let cameraZoom = 1.0;
 let targetZoom = 1.0;
 let isMouseDown = false;
+let lightDistance = 80.0;
+let speed = 0.1;
 
 function setupCameraRotation(canvas: HTMLCanvasElement) {
   canvas.onmousedown = () => (isMouseDown = true);
@@ -104,6 +107,28 @@ function setupCameraRotation(canvas: HTMLCanvasElement) {
     targetZoom += event.deltaY * -0.001;
     targetZoom = Math.min(Math.max(0.5, targetZoom), 2.0);
   };
+}
+
+function setupSettings() {
+  const lightDistanceElement = document.querySelector<HTMLInputElement>('#lightDistance');
+  if (lightDistanceElement) {
+    lightDistance = parseInt(lightDistanceElement.value);
+    lightDistanceElement.addEventListener('input', (event) => {
+      const target = event.target as HTMLInputElement;
+      lightDistance = parseInt(target.value);
+      console.log(lightDistance);
+    });
+  }
+
+  const speedElement = document.querySelector<HTMLInputElement>('#speed');
+  if (speedElement) {
+    speed = parseFloat(speedElement.value) / 10;
+    speedElement.addEventListener('input', (event) => {
+      const target = event.target as HTMLInputElement;
+      speed = parseFloat(target.value) / 10;
+      console.log(speed);
+    });
+  }
 }
 
 function smoothScroll() {
