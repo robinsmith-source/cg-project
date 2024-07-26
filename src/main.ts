@@ -1,5 +1,5 @@
-import './style.css'
-import {initialize} from './webgl'
+import './style.css';
+import { initialize } from './webgl';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
@@ -10,6 +10,6 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
        
     </footer>
   </div>
-`
+`;
 
-initialize(document.querySelector<HTMLCanvasElement>('#canvas')!)
+initialize(document.querySelector<HTMLCanvasElement>('#canvas')!);
