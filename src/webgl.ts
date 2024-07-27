@@ -3,7 +3,7 @@ import { loadOBJFile } from '../helpers/loader';
 import { loadTextResource } from '../helpers';
 import ShaderProgram from '../helpers/shaderProgram';
 import RenderableObject from '../helpers/renderableObject';
-import { TextureCube } from '../helpers/cube';
+import { TextureSphere } from '../helpers/sphere';
 
 let gl: WebGL2RenderingContext;
 let objects: RenderableObject[] = [];
@@ -22,8 +22,8 @@ export async function initialize(canvas: HTMLCanvasElement) {
   setupSettings();
 
   // Load shaders
-  const sceneVertexShader = (await loadTextResource('/shaders/shader1.vert')) as string;
-  const sceneFragmentShader = (await loadTextResource('/shaders/shader1.frag')) as string;
+  const sceneVertexShader = (await loadTextResource('/shaders/scene.vert')) as string;
+  const sceneFragmentShader = (await loadTextResource('/shaders/scene.frag')) as string;
   const sceneShader = new ShaderProgram(gl, sceneVertexShader, sceneFragmentShader);
   shaders.push(sceneShader);
 
@@ -42,10 +42,10 @@ export async function initialize(canvas: HTMLCanvasElement) {
   const scene = new RenderableObject(gl, sceneOBJ, sceneShader);
   objects.push(scene);
 
-  const sun = new TextureCube(gl, sunShader, '/textures/sun.png');
+  const sun = new TextureSphere(gl, sunShader, '/textures/sun-sphere.png', 4);
   objects.push(sun);
 
-  const moon = new TextureCube(gl, moonShader, '/textures/moon.png');
+  const moon = new TextureSphere(gl, moonShader, '/textures/moon-sphere.png', 2);
   objects.push(moon);
 
   renderLoop();
