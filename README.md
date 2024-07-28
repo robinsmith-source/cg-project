@@ -18,7 +18,7 @@ This project includes a simple WebGL scene with a day and night cycle, multiple 
 3. Run `pnpm dev` to start the development server
 4. Open `http://localhost:5173/` in your browser to view the project
 
-> **Note**  
+> [!NOTE] 
 > The project is also deployed on [cg.robinschmidt.dev](https://cg.robinschmidt.dev/).
 
 ## Special Quirks
