@@ -12,7 +12,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         <div id="settings">
           <div>
             <label for="lightDistance">Light Distance</label>
-            <input type="range" id="lightDistance" min="20" max="120" value="80" />
+            <input type="range" id="lightDistance" min="25" max="120" value="40" />
           </div>
           <div>
             <label for="speed">Speed</label>

@@ -67,10 +67,9 @@ function render() {
   gl.clearColor(0, 0, 0, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  const time = new Date().getTime() - timeAtProgramStart;
   const modelMatrix = mat4.create();
   const viewMatrix = mat4.create();
-  mat4.translate(viewMatrix, viewMatrix, [0.0, -0.5, -45.0]);
+  mat4.translate(viewMatrix, viewMatrix, [0.0, -2, -45.0]);
   mat4.rotate(viewMatrix, viewMatrix, (-cameraRotation.x * Math.PI) / 180, [1, 0, 0]);
   mat4.rotate(viewMatrix, viewMatrix, (-cameraRotation.y * Math.PI) / 180, [0, 1, 0]);
 
@@ -88,6 +87,7 @@ function render() {
   mat3.invert(normalMatrix, normalMatrix);
   mat3.transpose(normalMatrix, normalMatrix);
 
+  const time = new Date().getTime() - timeAtProgramStart;
   const timeOfDay = ((time * speed) % 36000) / 36000;
 
   objects.forEach((object) => {
@@ -132,7 +132,6 @@ function setupSettings() {
     lightDistanceElement.addEventListener('input', (event) => {
       const target = event.target as HTMLInputElement;
       lightDistance = parseInt(target.value);
-      console.log(lightDistance);
     });
   }
 
@@ -142,7 +141,6 @@ function setupSettings() {
     speedElement.addEventListener('input', (event) => {
       const target = event.target as HTMLInputElement;
       speed = parseFloat(target.value) / 10;
-      console.log(speed);
     });
   }
 }

@@ -39,16 +39,16 @@ float diffuseFactor(vec3 normal, vec3 light_direction) {
   return max(0.0, df);
 }
 
-// Calculate the direction of the sun based on the time of day
-vec3 calculateSunDirection(float timeOfDay) {
+// Calculate the direction of the sun based on the time of day and light distance
+vec3 calculateSunDirection(float timeOfDay, float lightDistance) {
   float angle = timeOfDay * 2.0 * PI; // Full rotation over a day
-  return normalize(vec3(0.0, sin(angle), cos(angle)));
+  return normalize(vec3(0.0, sin(angle) * lightDistance * 2.0, cos(angle) * lightDistance * 2.0)); // Increase impact
 }
 
-// Calculate the direction of the moon based on the time of day
-vec3 calculateMoonDirection(float timeOfDay) {
+// Calculate the direction of the moon based on the time of day and light distance
+vec3 calculateMoonDirection(float timeOfDay, float lightDistance) {
   float angle = timeOfDay * 2.0 * PI + PI; // Full rotation over a day
-  return normalize(vec3(0.0, sin(angle), cos(angle)));
+  return normalize(vec3(0.0, sin(angle) * lightDistance * 2.0, cos(angle) * lightDistance * 2.0)); // Increase impact
 }
 
 // Interpolate between two colors based on the time of day using smoothstep
@@ -61,12 +61,12 @@ vec3 colorEase(vec3 startColor, vec3 endColor, float startTime, float endTime, f
 void main() {
   // Define sun and moon lights as directional lights
   DirectionalLight sunLight;
-  sunLight.direction = calculateSunDirection(u_timeOfDay);
+  sunLight.direction = calculateSunDirection(u_timeOfDay, u_lightDistance);
   sunLight.color = colorEase(vec3(1.0, 0.5, 0.0), vec3(1.0, 1.0, 0.4), 0.0, 0.5, u_timeOfDay);
   sunLight.intensity = 1.0;
 
   DirectionalLight moonLight;
-  moonLight.direction = calculateMoonDirection(u_timeOfDay);
+  moonLight.direction = calculateMoonDirection(u_timeOfDay, u_lightDistance);
   moonLight.color = colorEase(vec3(0.3, 0.3, 0.4), vec3(0.1, 0.1, 0.2), 0.5, 1.0, u_timeOfDay);
   moonLight.intensity = 0.5;
 
